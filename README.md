@@ -1,98 +1,67 @@
 # Loud Caption
 
-Loud Caption is an Android MVP for large, high-contrast, real-time captions. It is intended to help a nearby listener follow a conversation without sending audio to a captioning service. This repository currently supports **Android only**; it is not an iOS app and it is not yet a product-readiness or speech-accuracy claim.
+[中文说明](README.zh.md)
 
-## Scope and privacy
+Loud Caption is an Android app that shows large, high-contrast, real-time captions of nearby speech — fully offline, using on-device Vosk speech recognition. It's built for people who are hard of hearing and want to read along with a conversation without any audio leaving the device. It currently bundles Chinese and English models and supports **Android only**.
 
-- The current developer release APK's audited manifest requests `RECORD_AUDIO` for capture and no `INTERNET`, storage, overlay, or foreground-service permission. It also includes Android's generated normal dynamic-receiver permission. This APK includes the capture-coordinator UI and has been installed and exercised on one developer phone (see below).
-- The debug APK used for local development/emulator installation includes `INTERNET` in its debug manifest for Flutter development tooling. The release APK does not include that permission.
-- The reviewed app source uses on-device Vosk models and no app-authored speech-upload path was identified. It stores caption preferences (language, font size, orientation), not caption history or audio. The offline emulator smoke reached recognition startup with Wi-Fi and mobile data disabled.
-- No dynamic network-traffic trace was performed. The permission/build checks and offline smoke do not by themselves prove that no speech data can ever be uploaded by every runtime dependency or environment.
-- Model archives are downloaded over HTTPS during developer/build preparation; recognition is designed to use the bundled models at runtime.
-- First use unpacks roughly 82 MB of model ZIPs into about 133 MB of app-private storage. Allow time and sufficient internal storage before granting the microphone.
+This is a personal, side-loaded project distributed through [GitHub Releases](https://github.com/DR1N0/loud-caption/releases) — not Google Play.
 
-The MVP has five live-screen controls: **A+**, **A-**, language toggle, orientation lock, and Settings. Settings lets the user enable/disable the installed Chinese and English models (at least one remains enabled).
+## Features
 
-While the app remains foregrounded, changing font size or orientation and opening, using, or leaving **in-app** Settings preserve the same microphone/recognizer session. Changing the selected recognition language, including by disabling it in Settings, swaps models. A genuine background transition, lock screen, or opening Android **system** Settings stops capture; foreground return rechecks microphone permission and the native session's logical health before restoring a lost session. A brief `inactive` state alone does not stop an existing session, but cannot initiate a new recording. Logical health is not proof that audio samples or accurate captions are arriving. These coordinator behaviors have mock coverage, and the current-source release APK has had a short developer-phone pass: the developer reported no problems, and the device's own log showed one continuous recognizer session spanning rotation/in-app-Settings use, exactly one session replacement consistent with a single language switch, and a clean stop exactly coincident with backgrounding, with no app crash. That one pass did not itself observe a subsequent foreground resume, caption text content, or font-size behavior; treat those as developer-confirmed but not independently log-verified.
+- Full-screen, high-contrast live captions with adjustable font size
+- Offline speech recognition for Chinese and English (switch with one tap)
+- Orientation lock, and a Settings screen to enable/disable installed languages
+- No audio or caption history is stored; only your preferences (language, font size, orientation) persist
+- Recognition keeps running through rotation, font changes, and the in-app Settings screen; it only stops when the app is truly backgrounded, the screen locks, or you leave for system Settings
 
-## Requirements
+See [`docs/model-sources.md`](docs/model-sources.md) and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for what's bundled and under what license, and [`docs/superpowers/specs/`](docs/superpowers/specs/) for the full design history.
 
-Install:
+## Developer guide
 
-- Flutter SDK (this project was verified with Flutter 3.41.7)
-- Android Studio and its Android SDK/emulator components
+### Requirements
+
+- Flutter SDK (verified with 3.41.7)
+- Android Studio with its Android SDK (`adb`, `aapt`, `apksigner`, an emulator or device)
 - Python 3
-- A JDK 17 trusted by the network used to resolve Gradle dependencies. The commands below use this machine's Zulu JDK without changing global Flutter or TLS settings.
+- A JDK 17 your network's TLS setup trusts for resolving Gradle dependencies (the `Makefile` defaults to a local Zulu 17 install — override `JAVA17_HOME` if yours lives elsewhere)
+- `make`
 
-## Get models, test, and build
-
-From the repository root, provision the pinned assets and run the Flutter checks:
-
-```bash
-python3 scripts/fetch_models.py
-python3 -m unittest discover -s test -p 'model_sources_test.py'
-flutter pub get
-flutter analyze
-flutter test
-```
-
-`fetch_models.py` downloads only these exact ZIP names over HTTPS, verifies their published catalog MD5 values while streaming, and atomically places them under `assets/models/`:
-
-```text
-vosk-model-small-en-us-0.15.zip  09ab50ccd62b674cbaa231b825f9c1cb
-vosk-model-small-cn-0.22.zip     d1a8e82933dcc7632667c036b0bb3dbb
-```
-
-The ZIPs are intentionally Git-ignored. Build Android with the command-scoped JDK (do not disable TLS or modify global Flutter configuration):
+### Common commands
 
 ```bash
-(cd android && env JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home PATH=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin:$PATH ./gradlew --no-daemon -Dorg.gradle.java.home=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home :app:testDebugUnitTest)
-(cd android && env JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home PATH=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/bin:$PATH ./gradlew --no-daemon -Dorg.gradle.java.home=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home :app:assembleDebug :app:assembleRelease)
+make models      # download + checksum-verify the two bundled Vosk models
+make test         # flutter test (unit + widget tests)
+make analyze      # flutter analyze
+make jvm-test     # Android/Kotlin JUnit tests
+make apk-debug    # build build/app/outputs/apk/debug/app-debug.apk
+make apk-release  # build build/app/outputs/apk/release/app-release.apk
+make apk          # alias for apk-release
+make check        # models + pub-get + analyze + test + jvm-test (full gate)
+make clean        # flutter clean
 ```
 
-Artifacts are:
+`make models` only needs to run once (or after an upstream model version bump) — the ZIPs are checksum-verified and Git-ignored. Run `make check` before sending a PR or cutting a release.
 
-```text
-build/app/outputs/apk/debug/app-debug.apk
-build/app/outputs/apk/release/app-release.apk
-```
-
-Verify an APK before installing it:
+### Install on a device
 
 ```bash
-$ANDROID_SDK_ROOT/build-tools/<version>/apksigner verify --verbose --print-certs build/app/outputs/apk/release/app-release.apk
+make install-debug     # build + adb install -r the debug APK
+make install-release   # build + adb install -r the release APK
 ```
 
-### Signing caveat
+On first launch, tap **开始** and grant the microphone permission Android prompts for. First use unpacks ~82 MB of bundled models into ~133 MB of app-private storage — allow time and storage before granting the mic.
 
-This project is distributed only as a GitHub Release, never through Google Play (which rejects debug-signed uploads anyway). The `release` build type signs with `android/app/release-keystore.jks`, a dedicated key generated for this project and **committed to the repository on purpose** — not the Android debug key, and not a secret.
+### Signing
 
-That tradeoff is deliberate and should be understood before reusing this pattern: because the private key is public, anyone with this repository can produce a new APK that Android will accept as a legitimate update to an existing install (the signatures match). For a personal, non-commercial, side-loaded project this was judged an acceptable risk in exchange for every build machine — including a future CI runner — producing update-compatible signatures without a private key that could be lost. It is not an appropriate choice for an app with real adversaries, real users' security expectations, or any Play Store distribution plan; a project in that position should generate its own keystore, keep it out of version control, and back it up privately instead.
+The release APK is signed with `android/app/release-keystore.jks`, a key generated for this project and **intentionally committed to the repo** — not a secret, not the Android debug key. This project ships only via GitHub Releases, never Play (which rejects debug-signed uploads), so a signature that stays consistent across every build machine mattered more than a private key that could be lost.
 
-## Local install and emulator smoke
+The tradeoff: because the key is public, anyone with this repo can produce an APK Android will accept as a legitimate update to an existing install. That's an acceptable risk for a personal, non-commercial project — it is **not** appropriate for an app with real adversaries or any Play Store plan, which should generate its own keystore, keep it out of version control, and back it up privately.
 
-In Android Studio Device Manager, create/start the existing `Medium_Phone_API_36.1` AVD, or start it from the SDK command line. Install only onto that local emulator:
+### Privacy
 
-```bash
-adb install -r build/app/outputs/apk/debug/app-debug.apk
-adb shell monkey -p app.loudcaption.loud_caption 1
-```
+- The release manifest requests only `RECORD_AUDIO`; no `INTERNET`, storage, overlay, or foreground-service permission. The debug build additionally requests `INTERNET` for Flutter's own dev tooling.
+- No app-authored speech-upload path exists; recognition runs on-device via bundled Vosk models. This hasn't been verified by a network traffic trace.
 
-This debug APK includes the debug-only `INTERNET` permission described above. Use the separately audited release APK for release-manifest permission claims; neither artifact should be distributed under the current debug signing configuration.
+### Status
 
-On first launch, tap **开始** and choose Android's microphone permission option. If the model cannot load, verify the two archives and their checksums above, then reinstall after freeing internal storage. A permanently denied microphone permission can be changed in Android app settings.
-
-For an offline smoke, disable emulator Wi-Fi and mobile data after the APK is installed, then grant the microphone and wait for the bundled model to unpack. Re-enable network afterward. No runtime network connection is needed for recognition.
-
-## Model and code notices
-
-- English model: [`vosk-model-small-en-us-0.15`](https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip)
-- Chinese model: [`vosk-model-small-cn-0.22`](https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip)
-- Model catalog and published license labels: <https://alphacephei.com/vosk/models/>
-- Vosk Android/API code: <https://github.com/alphacep/vosk-api> (Apache-2.0)
-
-See [`docs/model-sources.md`](docs/model-sources.md) for the pinned archive identities, checksum limitations, and redistribution review background, and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for the Apache License 2.0 text and attribution bundled with public releases of this APK. Vosk API's Apache-2.0 license alone does not establish rights for model data. No substantial code from the local `LiveTranscribe-Android` MIT reference project was copied into this repository; add its MIT attribution if that changes.
-
-## Not in this MVP
-
-Online translation, downloadable language packs, account/cloud sync, caption history/export, and iOS are intentionally out of scope. One phone ran an earlier release APK with stable basic Mandarin/English real-time captions after its JNA release-crash fix. The current coordinator UI, rebuilt as a **developer-only, debug-signed** APK, has since had a short pass on a connected developer phone: the developer reported all exercised features worked, and device logs corroborated a single continuous session across rotation/in-app Settings, one clean language-switch replacement, and an exact background stop with no crash. Foreground-resume behavior, actual caption accuracy, and device-specific thermal/battery/accessibility validation were not independently confirmed in that pass and remain open before any broader claim. Emulator UI observations and mock-driven tests do not by themselves establish those claims.
+One phone has run this app's release build with stable Chinese/English real-time captions, continuous capture across rotation and in-app Settings, a clean language-switch model swap, and a clean stop on backgrounding — developer-confirmed, partly corroborated by device logs. Foreground-resume behavior, caption accuracy, and device-specific battery/thermal/accessibility behavior have not been independently verified. Online translation, downloadable language packs, cloud sync, caption history, and iOS are intentionally out of scope.
