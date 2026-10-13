@@ -65,7 +65,9 @@ $ANDROID_SDK_ROOT/build-tools/<version>/apksigner verify --verbose --print-certs
 
 ### Signing caveat
 
-The checked-in Android configuration currently signs its `release` variant with the Android debug key so local release builds work. It passes APK signature verification but is **not** a stable public-update identity and must not be distributed as a production release. Keep a persistent release keystore outside this repository and agree the signing/key-management plan before externally sharing any APK. A local build does not authorize publishing or sending an artifact.
+This project is distributed only as a GitHub Release, never through Google Play (which rejects debug-signed uploads anyway). The `release` build type signs with `android/app/release-keystore.jks`, a dedicated key generated for this project and **committed to the repository on purpose** — not the Android debug key, and not a secret.
+
+That tradeoff is deliberate and should be understood before reusing this pattern: because the private key is public, anyone with this repository can produce a new APK that Android will accept as a legitimate update to an existing install (the signatures match). For a personal, non-commercial, side-loaded project this was judged an acceptable risk in exchange for every build machine — including a future CI runner — producing update-compatible signatures without a private key that could be lost. It is not an appropriate choice for an app with real adversaries, real users' security expectations, or any Play Store distribution plan; a project in that position should generate its own keystore, keep it out of version control, and back it up privately instead.
 
 ## Local install and emulator smoke
 
@@ -89,7 +91,7 @@ For an offline smoke, disable emulator Wi-Fi and mobile data after the APK is in
 - Model catalog and published license labels: <https://alphacephei.com/vosk/models/>
 - Vosk Android/API code: <https://github.com/alphacep/vosk-api> (Apache-2.0)
 
-See [`docs/model-sources.md`](docs/model-sources.md) for the pinned archive identities, checksum limitations, and redistribution review requirement. Vosk API's Apache-2.0 license alone does not establish rights for model data. No substantial code from the local `LiveTranscribe-Android` MIT reference project was copied into this repository; add its MIT attribution if that changes.
+See [`docs/model-sources.md`](docs/model-sources.md) for the pinned archive identities, checksum limitations, and redistribution review background, and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for the Apache License 2.0 text and attribution bundled with public releases of this APK. Vosk API's Apache-2.0 license alone does not establish rights for model data. No substantial code from the local `LiveTranscribe-Android` MIT reference project was copied into this repository; add its MIT attribution if that changes.
 
 ## Not in this MVP
 

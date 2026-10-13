@@ -30,14 +30,27 @@ android {
         versionName = flutter.versionName
     }
 
+    // This project is distributed only via GitHub Releases, never Google Play,
+    // which would reject a debug-signed upload. The signing identity below is
+    // intentionally committed to the repo (not a secret) so every build
+    // machine produces update-compatible signatures without a private key to
+    // lose. Anyone with this repo can sign a matching "update" — see
+    // README.md's Signing section before reusing this pattern elsewhere.
+    signingConfigs {
+        create("release") {
+            storeFile = file("release-keystore.jks")
+            storePassword = "loud-caption-public-release-key"
+            keyAlias = "loud_caption_release"
+            keyPassword = "loud-caption-public-release-key"
+        }
+    }
+
     buildTypes {
         release {
             // Vosk's JNA bindings look up fields by name at runtime.
             isMinifyEnabled = false
             isShrinkResources = false
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

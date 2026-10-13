@@ -12,3 +12,11 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# Exception: app/release-keystore.jks is intentionally committed public.
+# This project has no Play Store distribution; GitHub Release updates only
+# need a signature that stays consistent across build machines. The owner
+# explicitly accepted that anyone with this key can produce a signature-
+# matching "update" — see README.md's Signing section before reusing this
+# pattern on a project with real adversaries or Play Store distribution.
+!app/release-keystore.jks
