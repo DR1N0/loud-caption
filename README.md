@@ -2,7 +2,7 @@
 
 [中文说明](README.zh.md)
 
-Loud Caption is an Android app that shows large, high-contrast, real-time captions of nearby speech — fully offline, using on-device Vosk speech recognition. It's built for people who are hard of hearing and want to read along with a conversation without any audio leaving the device. It currently bundles Chinese and English models and supports **Android only**.
+Loud Caption is an Android app that shows large, high-contrast, real-time captions of nearby speech — fully offline, using on-device Vosk speech recognition. It's built for people who are hard of hearing and want to read along with a conversation without any audio leaving the device. It currently bundles Chinese and English models and supports **Android only**. The app's launcher name localizes to 大字幕 ("big captions") on devices with Chinese as the system language.
 
 This is a personal, side-loaded project distributed through [GitHub Releases](https://github.com/DR1N0/loud-caption/releases) — not Google Play.
 

@@ -1,8 +1,8 @@
-# Loud Caption
+# 大字幕(Loud Caption)
 
 [English](README.md)
 
-Loud Caption 是一款 Android 应用,为身边的对话实时显示大字、高对比度字幕——完全离线,使用设备本地的 Vosk 语音识别。它是为听力不便、希望跟着看字幕的人设计的,音频不会离开设备。目前内置中文和英文模型,**仅支持 Android**。
+大字幕(英文名 Loud Caption)是一款 Android 应用,为身边的对话实时显示大字、高对比度字幕——完全离线,使用设备本地的 Vosk 语音识别。它是为听力不便、希望跟着看字幕的人设计的,音频不会离开设备。目前内置中文和英文模型,**仅支持 Android**。系统语言为中文时,桌面图标和应用名会显示为"大字幕"。
 
 这是一个个人项目,通过 [GitHub Releases](https://github.com/DR1N0/loud-caption/releases) 侧载分发,不在 Google Play 上架。
 
