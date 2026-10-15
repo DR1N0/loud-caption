@@ -270,6 +270,14 @@ class VadChunkedSenseVoiceStrategy implements RecognitionStrategy {
             RecognitionOutput(text: message.text, isFinal: message.isFinal),
           );
         }
+        // Every `_AsrResult` — partial or final — means the ASR isolate's
+        // single-threaded event loop just finished a decode and is free to
+        // accept another. Relay that to the VAD isolate so it can unblock
+        // its `asrBusy` gate (see `_vadIsolateEntry`'s `Timer.periodic`)
+        // instead of firing a new partial-decode request on a fixed 200ms
+        // schedule regardless of whether the ASR isolate is still working
+        // through the previous one.
+        _vadSendPort?.send(const _AsrIsolateFree());
       }
     });
 
@@ -390,6 +398,19 @@ class _AsrResult {
   final bool isFinal;
 }
 
+/// Sent from the main isolate to the VAD isolate every time the main
+/// isolate's listener processes an [_AsrResult] (partial or final alike).
+/// Tells the VAD isolate the ASR isolate's event loop just became free again,
+/// so it's safe to send another partial-decode request. See the
+/// `asrBusy`/`Timer.periodic` handshake in [_vadIsolateEntry] for why this
+/// exists: without it, the VAD isolate has no way to know the ASR isolate is
+/// still mid-decode and will happily queue a new partial every 200ms
+/// regardless, building an ever-staler backlog once a decode starts taking
+/// longer than 200ms.
+class _AsrIsolateFree {
+  const _AsrIsolateFree();
+}
+
 // ============================================================
 // VAD isolate
 // ============================================================
@@ -445,6 +466,18 @@ Future<void> _vadIsolateEntry(_VadIsolateInit init) async {
   var speechStartOffset = 0;
   var isSpeechStarted = false;
 
+  // Tracks whether the ASR isolate is believed to still be mid-decode on a
+  // previously-sent *partial* request. Set `true` right after sending a
+  // partial, cleared by the main isolate's `_AsrIsolateFree` relay once any
+  // decode (partial or final) completes. See `Timer.periodic` below for the
+  // gate this enables, and the root-cause explanation in this file's class
+  // doc comment / the Task 12 brief: without this gate, a fixed 200ms timer
+  // keeps enqueuing partial requests into the ASR isolate's FIFO mailbox
+  // regardless of whether the previous one has even started running, so once
+  // a decode exceeds 200ms the backlog compounds and every queued decode is
+  // for audio that's already stale by the time it runs.
+  var asrBusy = false;
+
   void resetUtteranceState() {
     // Called once a segment closes, so the next utterance's partials don't
     // include stale audio from the one that just finished.
@@ -473,12 +506,20 @@ Future<void> _vadIsolateEntry(_VadIsolateInit init) async {
   // ever torn down via `Isolate.kill` from the main isolate, which discards
   // the isolate (and any of its timers) wholesale.
   Timer.periodic(simulatedStreamingPartialInterval, (_) {
-    if (!isSpeechStarted) return;
+    // Skip this tick entirely (don't queue it for later) whenever the ASR
+    // isolate hasn't signalled it's free since the last partial was sent —
+    // this is the "skip stale intermediate work" fix: the next tick where
+    // `asrBusy` is false will send whatever the growing buffer's *current*
+    // length is, automatically reflecting however much the segment grew
+    // while the ASR isolate was busy, instead of decoding every
+    // progressively-stale, progressively-larger slice in between.
+    if (!isSpeechStarted || asrBusy) return;
     final slice = growingBuffer.slice(speechStartOffset, growingBuffer.length);
     if (slice.isEmpty) return;
     init.asrSendPort.send(
       _AsrSegmentRequest(_transferableSamples(slice), 16000, isFinal: false),
     );
+    asrBusy = true;
   });
 
   receivePort.listen((message) {
@@ -495,6 +536,20 @@ Future<void> _vadIsolateEntry(_VadIsolateInit init) async {
     } else if (message is _VadReset) {
       vad.reset();
       resetUtteranceState();
+      // Defensive safety net, not something expected to ever actually fire:
+      // a warm restart (`start()` called again on already-spawned isolates)
+      // is exactly the kind of boundary where, if an `_AsrIsolateFree` relay
+      // were ever lost (e.g. the main isolate's listener raced with isolate
+      // teardown on a previous `stop`, or some future refactor introduces a
+      // path that drops it), `asrBusy` could otherwise stay stuck `true`
+      // forever and silently disable all partial decodes for the rest of the
+      // process's life with no further symptom until the next long
+      // utterance. Dart's SendPort delivery is reliable in the ordinary case
+      // the brief flags this against, so this isn't fixing a reproduced bug
+      // — it's cutting off a silent, hard-to-diagnose failure mode cheaply
+      // at the one point where resetting all other utterance state already
+      // happens anyway.
+      asrBusy = false;
     } else if (message is _VadFlush) {
       // A stop mid-utterance should still emit the trailing speech as a
       // final segment rather than silently dropping it. `drainSegments`
@@ -502,6 +557,8 @@ Future<void> _vadIsolateEntry(_VadIsolateInit init) async {
       // consumed, exactly as it does for a normal VAD-closed segment.
       vad.flush();
       drainSegments();
+    } else if (message is _AsrIsolateFree) {
+      asrBusy = false;
     }
   });
 }
