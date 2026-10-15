@@ -15,6 +15,92 @@ import 'speech_engine.dart';
 /// Dart first for a clearer error.
 const _senseVoiceLanguages = ['auto', 'zh', 'en', 'ja', 'ko', 'yue'];
 
+/// Pre-roll back-dating applied to the speech-start offset the moment
+/// [sherpa_onnx.VoiceActivityDetector.isDetected] transitions from
+/// not-detected to detected. Copied exactly (not retuned) from sherpa-onnx's
+/// own `SherpaOnnxSimulateStreamingAsr` Android demo (`Home.kt`): 6400
+/// samples = 0.4s @ 16kHz, capturing audio the VAD likely saw just before it
+/// noticed speech.
+const int simulatedStreamingPreRollSamples = 6400;
+
+/// Interval between "simulated streaming" partial re-decodes of the
+/// in-progress speech segment. Copied exactly (not retuned) from the same
+/// reference demo's 200ms value.
+const Duration simulatedStreamingPartialInterval = Duration(milliseconds: 200);
+
+/// Backdates [currentBufferLength] by [preRollSamples] (defaulting to
+/// [simulatedStreamingPreRollSamples]), clamped to zero, to compute the
+/// segment-start offset used for "simulated streaming" partial re-decodes.
+///
+/// Pure and synchronous, so — unlike the isolate code that calls it — it is
+/// directly unit-tested without touching any isolate or native sherpa-onnx
+/// code.
+@visibleForTesting
+int computeBackdatedSpeechStartOffset(
+  int currentBufferLength, {
+  int preRollSamples = simulatedStreamingPreRollSamples,
+}) {
+  final backdated = currentBufferLength - preRollSamples;
+  return backdated < 0 ? 0 : backdated;
+}
+
+/// An append-only buffer of [Float32List] audio chunks supporting cheap
+/// appends and slicing without copying on every append, used by
+/// [_vadIsolateEntry] to accumulate the "simulated streaming" raw sample
+/// buffer referenced in [VadChunkedSenseVoiceStrategy]'s class doc comment.
+///
+/// Kept separate from whatever [sherpa_onnx.VoiceActivityDetector] buffers
+/// internally, matching the reference demo this is ported from.
+///
+/// Pure and synchronous (no isolate/native dependency), so it is directly
+/// unit-tested.
+@visibleForTesting
+class GrowingSampleBuffer {
+  final List<Float32List> _chunks = [];
+  int _length = 0;
+
+  /// Total number of samples appended so far and not yet discarded by
+  /// [clear].
+  int get length => _length;
+
+  /// Appends [samples] to the end of the buffer.
+  void append(Float32List samples) {
+    if (samples.isEmpty) return;
+    _chunks.add(samples);
+    _length += samples.length;
+  }
+
+  /// Discards all buffered samples, resetting [length] to 0.
+  void clear() {
+    _chunks.clear();
+    _length = 0;
+  }
+
+  /// Returns a newly-allocated [Float32List] containing samples
+  /// `[start, end)`, clamped to the buffer's current bounds.
+  Float32List slice(int start, int end) {
+    final clampedStart = start < 0 ? 0 : (start > _length ? _length : start);
+    final clampedEnd = end < clampedStart
+        ? clampedStart
+        : (end > _length ? _length : end);
+    final result = Float32List(clampedEnd - clampedStart);
+    var written = 0;
+    var consumed = 0;
+    for (final chunk in _chunks) {
+      final chunkStart = consumed;
+      final chunkEnd = consumed + chunk.length;
+      consumed = chunkEnd;
+      if (chunkEnd <= clampedStart || chunkStart >= clampedEnd) continue;
+      final from = clampedStart > chunkStart ? clampedStart - chunkStart : 0;
+      final to = clampedEnd < chunkEnd ? clampedEnd - chunkStart : chunk.length;
+      for (var i = from; i < to; i++) {
+        result[written++] = chunk[i];
+      }
+    }
+    return result;
+  }
+}
+
 /// Validates [values] against [options], throwing [ArgumentError] for an
 /// unknown key or a value outside that key's allowed values.
 ///
@@ -55,6 +141,14 @@ void _validateLanguageConfig(
 /// stop-then-start pattern — because reloading SenseVoice's ~163 MB ONNX
 /// model on every language toggle would make that toggle feel broken.
 /// Only [dispose] tears the isolates down permanently.
+///
+/// While speech is ongoing, the VAD isolate also re-decodes the
+/// in-progress segment every [simulatedStreamingPartialInterval] and emits
+/// it as a non-final [RecognitionOutput] ("simulated streaming", ported
+/// exactly from sherpa-onnx's own `SherpaOnnxSimulateStreamingAsr` Android
+/// demo) so text appears progressively instead of only once per pause; the
+/// existing VAD-segment-close path still does one more full decode and
+/// emits the true final.
 ///
 /// Full VAD/ASR behavior (real audio through real models) is not exercised
 /// by unit tests in this file — see that file's header comment for why, and
@@ -172,7 +266,9 @@ class VadChunkedSenseVoiceStrategy implements RecognitionStrategy {
         vadReady.complete(message.sendPort);
       } else if (message is _AsrResult) {
         if (!_output.isClosed) {
-          _output.add(RecognitionOutput(text: message.text, isFinal: true));
+          _output.add(
+            RecognitionOutput(text: message.text, isFinal: message.isFinal),
+          );
         }
       }
     });
@@ -239,9 +335,17 @@ class _VadFlush {
 }
 
 class _AsrSegmentRequest {
-  const _AsrSegmentRequest(this.samples, this.sampleRate);
+  const _AsrSegmentRequest(this.samples, this.sampleRate, {required this.isFinal});
   final Float32List samples;
   final int sampleRate;
+
+  /// Whether this is the true final decode of a VAD-closed segment (`true`)
+  /// or a "simulated streaming" partial re-decode of a still-open segment
+  /// (`false`). Threaded through unchanged by the ASR isolate onto the
+  /// matching [_AsrResult] so the main isolate's listener can construct the
+  /// correctly-tagged [RecognitionOutput] without tracking any state of its
+  /// own.
+  final bool isFinal;
 }
 
 class _AsrSetLanguage {
@@ -250,8 +354,9 @@ class _AsrSetLanguage {
 }
 
 class _AsrResult {
-  const _AsrResult(this.text);
+  const _AsrResult(this.text, {required this.isFinal});
   final String text;
+  final bool isFinal;
 }
 
 // ============================================================
@@ -298,23 +403,66 @@ Future<void> _vadIsolateEntry(_VadIsolateInit init) async {
   final receivePort = ReceivePort();
   init.mainSendPort.send(_VadReady(receivePort.sendPort));
 
+  // "Simulated streaming" state: a growing raw-sample buffer, separate from
+  // whatever `vad` buffers internally, used to re-decode the in-progress
+  // speech segment every `simulatedStreamingPartialInterval` while speech is
+  // ongoing. Ported from sherpa-onnx's own `SherpaOnnxSimulateStreamingAsr`
+  // Android demo (`Home.kt`) with its exact parameters (6400-sample pre-roll,
+  // 200ms re-decode interval) per real-device testing feedback that waiting
+  // for a full pause before any text appears feels too slow.
+  final growingBuffer = GrowingSampleBuffer();
+  var speechStartOffset = 0;
+  var isSpeechStarted = false;
+
+  void resetUtteranceState() {
+    // Called once a segment closes, so the next utterance's partials don't
+    // include stale audio from the one that just finished.
+    growingBuffer.clear();
+    speechStartOffset = 0;
+    isSpeechStarted = false;
+  }
+
   void drainSegments() {
     while (!vad.isEmpty()) {
       final segment = vad.front();
-      init.asrSendPort.send(_AsrSegmentRequest(segment.samples, 16000));
+      init.asrSendPort.send(
+        _AsrSegmentRequest(segment.samples, 16000, isFinal: true),
+      );
       vad.pop();
+      resetUtteranceState();
     }
   }
 
+  // Fires independently of audio arrival; it's a no-op whenever speech isn't
+  // currently in progress. Not explicitly cancelled: this isolate is only
+  // ever torn down via `Isolate.kill` from the main isolate, which discards
+  // the isolate (and any of its timers) wholesale.
+  Timer.periodic(simulatedStreamingPartialInterval, (_) {
+    if (!isSpeechStarted) return;
+    final slice = growingBuffer.slice(speechStartOffset, growingBuffer.length);
+    if (slice.isEmpty) return;
+    init.asrSendPort.send(_AsrSegmentRequest(slice, 16000, isFinal: false));
+  });
+
   receivePort.listen((message) {
     if (message is _AudioChunk) {
+      growingBuffer.append(message.samples);
       vad.acceptWaveform(message.samples);
+      if (!isSpeechStarted && vad.isDetected()) {
+        isSpeechStarted = true;
+        speechStartOffset = computeBackdatedSpeechStartOffset(
+          growingBuffer.length,
+        );
+      }
       drainSegments();
     } else if (message is _VadReset) {
       vad.reset();
+      resetUtteranceState();
     } else if (message is _VadFlush) {
       // A stop mid-utterance should still emit the trailing speech as a
-      // final segment rather than silently dropping it.
+      // final segment rather than silently dropping it. `drainSegments`
+      // resets the growing-buffer state once the flushed segment is
+      // consumed, exactly as it does for a normal VAD-closed segment.
       vad.flush();
       drainSegments();
     }
@@ -381,7 +529,9 @@ Future<void> _asrIsolateEntry(_AsrIsolateInit init) async {
       recognizer.decode(stream);
       final result = recognizer.getResult(stream);
       stream.free();
-      init.mainSendPort.send(_AsrResult(result.text));
+      init.mainSendPort.send(
+        _AsrResult(result.text, isFinal: message.isFinal),
+      );
     } else if (message is _AsrSetLanguage) {
       // A language toggle updates the recognizer's runtime config in place
       // rather than recreating it, so the ~163 MB ONNX model stays loaded.
