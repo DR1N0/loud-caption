@@ -2,28 +2,208 @@
 
 Loud Caption bundles on-device speech-recognition components it did not author. This file collects the attribution and license text those components require before this APK is distributed outside the developer's own devices. See [`docs/model-sources.md`](docs/model-sources.md) for the underlying research and its limitations.
 
-## Vosk API / Android library
+(This project previously used the Vosk API and Vosk's English/Chinese ZIP models; it migrated to sherpa-onnx with a SenseVoice ASR model and a Silero VAD model. The notices below reflect the current engine only.)
 
-- Project: [alphacep/vosk-api](https://github.com/alphacep/vosk-api)
-- License: Apache License 2.0 — [`COPYING`](https://github.com/alphacep/vosk-api/blob/master/COPYING)
-- Used as: `com.alphacephei:vosk-android:0.3.75` Gradle dependency (unmodified)
+## sherpa-onnx
+
+- Project: [k2-fsa/sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)
+- License: Apache License 2.0 — [`LICENSE`](https://github.com/k2-fsa/sherpa-onnx/blob/master/LICENSE)
+- Used as: `sherpa_onnx` Flutter package dependency (unmodified)
+
+## record
+
+- Project: [llfbandit/record](https://github.com/llfbandit/record)
+- License: as published in the package's own `LICENSE` file (reproduced verbatim below) — a BSD-3-Clause-style license text
+- Used as: `record` Flutter package dependency (unmodified)
+
+Note: the `record` package's `LICENSE` file is headed "Copyright 2022 openapi4j authors," an unrelated project name — this appears to be a copy-paste template artifact from the package's own maintainers, not something introduced or interpreted by this project. It is reproduced below exactly as published, without alteration:
+
+```
+Copyright 2022 openapi4j authors. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+   * Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+   * Redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the following disclaimer
+in the documentation and/or other materials provided with the
+distribution.
+   * Neither the name of openapi4j nor the names of its
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
 
 ## Bundled speech models
 
-Both models are fetched by `scripts/fetch_models.py` from the official Vosk model catalog and bundled as Flutter assets. The official catalog labels each one Apache-2.0; this is independent of (and not established solely by) the Vosk API code license above.
+Both model files are fetched by `scripts/fetch_models.py` from the `asr-models` release of `k2-fsa/sherpa-onnx` and bundled as Flutter assets. Their model-data licenses are independent of sherpa-onnx's own Apache-2.0 code license above.
 
-| Language | Exact model | Source | Catalog license | Embedded attribution |
-| --- | --- | --- | --- | --- |
-| English | `vosk-model-small-en-us-0.15` | <https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip> | Apache-2.0 | README states "Copyright 2020 Alpha Cephei Inc" |
-| Chinese | `vosk-model-small-cn-0.22` | <https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip> | Apache-2.0 | Archive README carries no copyright/license statement |
+| Component | Exact file | Source | License |
+| --- | --- | --- | --- |
+| SenseVoice ASR (zh/en/ja/ko/yue, int8) | `model.int8.onnx` + `tokens.txt` (extracted from `sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17.tar.bz2`) | <https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17.tar.bz2> | FunASR Model Open Source License Agreement v1.1 |
+| Silero VAD v4 | `silero_vad.onnx` | <https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx> | MIT |
 
-Model catalog (authoritative source for the license labels above): <https://alphacephei.com/vosk/models/>
+See [`docs/model-sources.md`](docs/model-sources.md) for the pinned SHA-256 digests and download/installed sizes for both files.
 
-Neither archive embeds its own `LICENSE`, `COPYING`, or `NOTICE` file, and neither was modified before bundling — both are extracted unmodified to app-private storage on first run. There is no known upstream `NOTICE` text to reproduce for these two exact releases; if a future release of either archive adds one, it must be reproduced here per Apache License 2.0 §4(d).
+The SenseVoice ONNX export bundled here is a converted/quantized derivative of Alibaba's FunASR SenseVoice model, per that model's own Hugging Face model card; it is governed by the FunASR Model License below, independent of the sherpa-onnx project that hosts the converted file.
+
+## FunASR Model Open Source License Agreement v1.1 (full text, governs the bundled SenseVoice model weights)
+
+```
+FunASR Model Open Source License Agreement
+
+Version: 1.1
+
+Copyright (C) [2023-2028] [Alibaba Group]. All rights reserved.
+
+Thank you for choosing the FunASR open-source model. The FunASR open-source model includes a range of free and open industrial models for you to use, modify, share, and learn from.
+
+To ensure better community collaboration, we have established the following agreement, and we hope you will read and comply with its terms.
+Definitions
+
+In this agreement, [FunASR Software] refers to FunASR open-source model weights and their derivatives, including finetuned models; [You] refers to individuals or organizations using, modifying, sharing, and learning from [FunASR Software].
+
+2 License and Restrictions
+
+2.1 License
+
+You are free to use, copy, modify, and share [FunASR Software] under the terms of this agreement.
+
+2.2 Restrictions
+
+When using, copying, modifying, and sharing [FunASR Software], you must attribute the source and author information and retain relevant model names in [FunASR Software].
+
+3 Responsibility and Risk
+
+[FunASR Software] is provided for reference and learning purposes only, and Alibaba Group assumes no responsibility for any direct or indirect losses resulting from your use or modification of [FunASR Software]. You should assume all risks associated with using and modifying [FunASR Software].
+
+4 Community Conduct Guidelines
+
+4.1 Encouraged Behavior
+
+The community welcomes developers and users to engage in discussions about [FunASR Software]. Participants are encouraged to interact in a friendly, polite, and respectful manner to foster constructive discussion and collaboration.
+
+4.2 Prohibited Behavior
+
+Individual or organizational users shall not engage in unjustified denigration, malicious smearing, or baseless insults against [FunASR Software]. Such behavior is considered a violation of the spirit of community cooperation. If a user is found to be engaging in the prohibited behavior mentioned above, it will be considered an automatic forfeiture of all licenses under this agreement.
+
+5 Termination
+
+If you violate any terms of this agreement, your license will automatically terminate, and you must cease using, copying, modifying, and sharing [FunASR Software].
+
+6 Revisions
+
+This agreement may be updated and revised occasionally. The revised agreement will be published in the official repository of [FunASR Software] and will take effect automatically. Continuing to use, copy, modify, and share [FunASR Software] indicates your acceptance of the revised agreement.
+
+7 Miscellaneous
+
+This agreement is governed by the laws of [Country/Region]. If any provision is deemed illegal, invalid, or unenforceable, that provision shall be considered severed from this agreement, and the remaining provisions shall continue to be valid and binding.
+
+If you have any questions or comments regarding this agreement, please contact us.
+
+Copyright © [2023-2028] [Alibaba Group]. All rights reserved.
+
+
+FunASR 模型开源协议
+
+版本号：1.1
+
+版权所有 (C) [2023-2028] [阿里巴巴集团]。保留所有权利。
+
+感谢您选择 FunASR 开源模型。FunASR 开源模型包含一系列免费且开源的工业模型，让大家可以使用、修改、分享和学习该模型。
+
+为了保证更好的社区合作，我们制定了以下协议，希望您仔细阅读并遵守本协议。
+
+1 定义
+
+本协议中，[FunASR 软件]指 FunASR 开源模型权重及其衍生品，包括 Finetune 后的模型；[您]指使用、修改、分享和学习[FunASR 软件]的个人或组织。
+
+2 许可和限制
+
+2.1 许可
+
+您可以在遵守本协议的前提下，自由地使用、复制、修改和分享[FunASR 软件]。
+
+2.2 限制
+
+您在使用、复制、修改和分享[FunASR 软件]时，必须注明出处以及作者信息，并保留[FunASR 软件]中相关模型名称。
+
+3 责任和风险承担
+
+[FunASR 软件]仅作为参考和学习使用，不对您使用或修改[FunASR 软件]造成的任何直接或间接损失承担任何责任。您对[FunASR 软件]的使用和修改应该自行承担风险。
+
+4 社区行为准则
+
+4.1 欢迎交流
+
+社区欢迎开发者与用户对[FunASR 软件]进行交流讨论。交流中请注意保持友好、礼貌和文明，以促进建设性的讨论和合作。
+
+4.2 禁止行为
+
+个人或组织用户不得对[FunASR 软件]进行无端诋毁、恶意抹黑或凭空谩骂。此类行为被视为违反社区合作精神。如被认定从事上述禁止行为，将视为自动放弃本协议下的所有许可。
+
+5 终止
+
+如果您违反本协议的任何条款，您的许可将自动终止，您必须停止使用、复制、修改和分享[FunASR 软件]。
+
+6 修订
+
+本协议可能会不时更新和修订。修订后的协议将在[FunASR 软件]官方仓库发布，并自动生效。如果您继续使用、复制、修改和分享[FunASR 软件]，即表示您同意修订后的协议。
+
+7 其他规定
+
+本协议受到[国家/地区] 的法律管辖。如果任何条款被裁定为不合法、无效或无法执行，则该条款应被视为从本协议中删除，而其余条款应继续有效并具有约束力。
+
+如果您对本协议有任何问题或意见，请联系我们。
+
+版权所有© [2023-2028] [阿里巴巴集团]。保留所有权利。
+```
+
+## Silero VAD License (MIT, full text, governs the bundled `silero_vad.onnx`)
+
+Source: <https://github.com/snakers4/silero-vad/blob/master/LICENSE>
+
+```
+MIT License
+
+Copyright (c) 2020-present Silero Team
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 
 ## Apache License 2.0 (full text)
 
-Governs the Vosk API code above and, per the official model catalog, the two bundled model archives above.
+Governs the `sherpa-onnx` project/package above.
 
 ```
                                  Apache License

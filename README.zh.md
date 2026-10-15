@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-大字幕(英文名 Loud Caption)是一款 Android 应用,为身边的对话实时显示大字、高对比度字幕——完全离线,使用设备本地的 Vosk 语音识别。它是为听力不便、希望跟着看字幕的人设计的,音频不会离开设备。目前内置中文和英文模型,**仅支持 Android**。系统语言为中文时,桌面图标和应用名会显示为"大字幕"。
+大字幕(英文名 Loud Caption)是一款 Android 应用,为身边的对话实时显示大字、高对比度字幕——完全离线,使用设备本地的 sherpa-onnx(SenseVoice)语音识别。它是为听力不便、希望跟着看字幕的人设计的,音频不会离开设备。目前内置中文和英文模型,**仅支持 Android**。系统语言为中文时,桌面图标和应用名会显示为"大字幕"。
 
 这是一个个人项目,通过 [GitHub Releases](https://github.com/DR1N0/loud-caption/releases) 侧载分发,不在 Google Play 上架。
 
@@ -29,18 +29,17 @@
 ### 常用命令
 
 ```bash
-make models       # 下载并校验两个内置 Vosk 模型
+make models        # 下载并校验内置的 SenseVoice + Silero VAD 模型
 make test          # flutter test(单元 + widget 测试）
 make analyze       # flutter analyze
-make jvm-test      # Android/Kotlin JUnit 测试
 make apk-debug     # 构建 build/app/outputs/apk/debug/app-debug.apk
 make apk-release   # 构建 build/app/outputs/apk/release/app-release.apk
 make apk           # apk-release 的别名
-make check         # models + pub-get + analyze + test + jvm-test（完整检查）
+make check         # models + pub-get + analyze + test（完整检查）
 make clean         # flutter clean
 ```
 
-`make models` 一般只需执行一次(或模型升级版本时再跑一次)——ZIP 文件会做校验且已被 Git 忽略。提交 PR 或准备发布前先跑一遍 `make check`。
+`make models` 一般只需执行一次(或模型升级版本时再跑一次)——模型文件会做校验且已被 Git 忽略。提交 PR 或准备发布前先跑一遍 `make check`。
 
 ### 安装到设备
 
@@ -49,7 +48,7 @@ make install-debug     # 构建 + adb install -r 安装 debug 包
 make install-release   # 构建 + adb install -r 安装 release 包
 ```
 
-首次启动时,点击 **开始** 并同意 Android 弹出的麦克风权限请求。首次使用会把约 82 MB 的内置模型解压到约 133 MB 的应用私有存储,请在授予麦克风权限前确保时间和存储空间足够。
+首次启动时,点击 **开始** 并同意 Android 弹出的麦克风权限请求。应用内置约 240 MB 的模型文件(SenseVoice + Silero VAD),这些文件会以原始文件形式直接复制到应用私有存储,不需要解压,占用空间基本不变,请在授予麦克风权限前确保时间和存储空间足够。
 
 ### 签名说明
 
@@ -60,8 +59,8 @@ release 包用 `android/app/release-keystore.jks` 签名——这是为本项目
 ### 隐私
 
 - release 包的 manifest 只申请 `RECORD_AUDIO`,没有 `INTERNET`、存储、悬浮窗或前台服务权限。debug 包额外带有 Flutter 开发工具自身需要的 `INTERNET` 权限。
-- 没有发现任何由本应用代码发起的语音上传路径;识别完全基于内置的 Vosk 模型在设备本地完成。这一点未经网络抓包独立验证。
+- 没有发现任何由本应用代码发起的语音上传路径;识别完全基于内置的 sherpa-onnx(SenseVoice)和 Silero VAD 模型在设备本地完成。这一点未经网络抓包独立验证。
 
 ### 现状
 
-有一台手机运行过本项目的 release 包,实测中英文实时字幕稳定、旋屏和应用内设置期间不中断识别、切换语言时模型替换顺利、退到后台时能干净停止——这些由开发者确认,部分有设备日志佐证。前台恢复行为、字幕准确率,以及不同设备的电量/发热/无障碍表现尚未独立验证。在线翻译、可下载语言包、云同步、字幕历史和 iOS 支持均不在当前范围内。
+本项目已将语音识别引擎从 Vosk 迁移到 sherpa-onnx(SenseVoice 语音识别 + Silero VAD)。以下设备验证结论来自迁移前的 Vosk 版本,**尚未在新引擎上重新验证**——针对 sherpa-onnx 的设备级冒烟测试仍待执行。在迁移之前,有一台手机运行过基于 Vosk 的 release 包,实测中英文实时字幕稳定、旋屏和应用内设置期间不中断识别、切换语言时模型替换顺利、退到后台时能干净停止——这些由开发者确认,部分有设备日志佐证。前台恢复行为、字幕准确率,以及不同设备的电量/发热/无障碍表现在两套引擎上均尚未独立验证。在线翻译、可下载语言包、云同步、字幕历史和 iOS 支持均不在当前范围内。
