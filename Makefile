@@ -4,7 +4,7 @@
 # targets below; override JAVA17_HOME if Zulu isn't installed at this path.
 JAVA17_HOME ?= /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home
 
-.PHONY: models pub-get analyze test jvm-test apk-debug apk-release apk \
+.PHONY: models pub-get analyze test apk-debug apk-release apk \
         install-debug install-release clean check
 
 ## Download and checksum-verify the SenseVoice + Silero VAD model files.
@@ -23,11 +23,6 @@ analyze:
 ## Run the Flutter unit/widget test suite.
 test:
 	flutter test
-
-## Run the Android (Kotlin/JVM) unit test suite.
-jvm-test:
-	cd android && env JAVA_HOME=$(JAVA17_HOME) PATH="$(JAVA17_HOME)/bin:$$PATH" \
-		./gradlew --no-daemon -Dorg.gradle.java.home=$(JAVA17_HOME) :app:testDebugUnitTest
 
 ## Build the debug APK (includes the debug-only INTERNET permission).
 apk-debug:
@@ -53,5 +48,5 @@ install-release: apk-release
 clean:
 	flutter clean
 
-## Full pre-release gate: models, deps, static analysis, and both test suites.
-check: models pub-get analyze test jvm-test
+## Full pre-release gate: models, deps, static analysis, and the test suite.
+check: models pub-get analyze test

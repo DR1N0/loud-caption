@@ -47,7 +47,9 @@ android {
 
     buildTypes {
         release {
-            // Vosk's JNA bindings look up fields by name at runtime.
+            // Left disabled pending verification that sherpa_onnx's FFI
+            // bindings and record's plugin code survive R8; revisit as a
+            // separate, tested change.
             isMinifyEnabled = false
             isShrinkResources = false
             signingConfig = signingConfigs.getByName("release")
@@ -56,8 +58,6 @@ android {
 }
 
 dependencies {
-    implementation("com.alphacephei:vosk-android:0.3.75")
-    testImplementation("junit:junit:4.13.2")
 }
 
 flutter {

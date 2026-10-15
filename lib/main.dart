@@ -7,8 +7,10 @@ import 'lifecycle/caption_lifecycle_coordinator.dart';
 import 'lifecycle/screen_awake.dart';
 import 'permissions/microphone_access.dart';
 import 'settings/app_settings.dart';
-import 'speech/android_vosk_engine.dart';
+import 'speech/mic_capture.dart';
+import 'speech/sherpa_onnx_speech_engine.dart';
 import 'speech/speech_engine.dart';
+import 'speech/vad_chunked_sense_voice_strategy.dart';
 import 'ui/caption_screen.dart';
 import 'ui/orientation_manager.dart';
 import 'ui/settings_screen.dart';
@@ -50,7 +52,11 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    _engine = widget.engine ?? AndroidVoskEngine();
+    _engine = widget.engine ??
+        SherpaOnnxSpeechEngine(
+          mic: RecordPackageMicCapture(),
+          strategy: VadChunkedSenseVoiceStrategy(),
+        );
     _orientationManager = widget.orientationManager ?? OrientationManager();
     _controller = CaptionController(
       engine: _engine,
