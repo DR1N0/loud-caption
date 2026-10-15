@@ -38,6 +38,9 @@ dependencies:
   shared_preferences: ^2.5.5
   wakelock_plus: ^1.7.0
   synchronized: 3.4.0+1
+  sherpa_onnx: 1.13.8
+  record: ^6.2.0
+  path_provider: ^2.1.3
 
 dev_dependencies:
   flutter_test:
@@ -67,8 +70,9 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/models/vosk-model-small-en-us-0.15.zip
-    - assets/models/vosk-model-small-cn-0.22.zip
+    - assets/models/sense-voice/model.int8.onnx
+    - assets/models/sense-voice/tokens.txt
+    - assets/models/silero-vad/silero_vad.onnx
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -7,7 +7,7 @@ JAVA17_HOME ?= /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home
 .PHONY: models pub-get analyze test jvm-test apk-debug apk-release apk \
         install-debug install-release clean check
 
-## Download and checksum-verify the two bundled Vosk model archives.
+## Download and checksum-verify the SenseVoice + Silero VAD model files.
 models:
 	python3 scripts/fetch_models.py
 	python3 -m unittest discover -s test -p 'model_sources_test.py'

@@ -44,9 +44,12 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Downloaded Vosk model archives are generated build assets.
-/assets/models/*.zip
-/assets/models/*.part
+# Downloaded sherpa-onnx model files are generated build assets.
+/assets/models/sense-voice/model.int8.onnx
+/assets/models/sense-voice/tokens.txt
+/assets/models/silero-vad/silero_vad.onnx
+/assets/models/**/*.part
+/build_cache/
 
 # Agent generated
 docs/superpowers
