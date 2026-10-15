@@ -174,6 +174,13 @@ class AndroidVoskEngine implements SpeechEngine {
     }
   }
 
+  @override
+  List<SpeechEngineConfigOption> get configOptions => const [];
+  @override
+  Map<String, String> get currentConfig => const {};
+  @override
+  Future<void> applyConfig(Map<String, String> values) async {}
+
   Future<void> _stopLateNativeSession(int generation) async {
     // A protocol stop has no session ID, so the pending marker remains a fence
     // until this exact late session is known to be stopped.

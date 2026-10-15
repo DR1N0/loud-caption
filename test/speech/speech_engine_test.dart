@@ -9,4 +9,15 @@ void main() {
     expect(partial.sessionId, done.sessionId);
     expect(done.kind, SpeechEventKind.finalText);
   });
+
+  test('SpeechEngineConfigOption round-trips its fields', () {
+    const option = SpeechEngineConfigOption(
+      key: 'language',
+      allowedValues: ['auto', 'zh', 'en', 'ja', 'ko', 'yue'],
+      defaultValue: 'auto',
+    );
+    expect(option.key, 'language');
+    expect(option.allowedValues, ['auto', 'zh', 'en', 'ja', 'ko', 'yue']);
+    expect(option.defaultValue, 'auto');
+  });
 }

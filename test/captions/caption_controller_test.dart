@@ -519,4 +519,11 @@ class FakeSpeechEngine implements SpeechEngine {
   Future<void> dispose() => controller.close();
 
   void emit(SpeechEvent event) => controller.add(event);
+
+  @override
+  List<SpeechEngineConfigOption> get configOptions => const [];
+  @override
+  Map<String, String> get currentConfig => const {};
+  @override
+  Future<void> applyConfig(Map<String, String> values) async {}
 }

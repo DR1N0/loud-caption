@@ -223,4 +223,11 @@ class _FakeSpeechEngine implements SpeechEngine {
 
   @override
   Future<void> stop() async => _activeSessionId = null;
+
+  @override
+  List<SpeechEngineConfigOption> get configOptions => const [];
+  @override
+  Map<String, String> get currentConfig => const {};
+  @override
+  Future<void> applyConfig(Map<String, String> values) async {}
 }
