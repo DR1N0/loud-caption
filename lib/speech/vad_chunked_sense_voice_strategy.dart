@@ -336,7 +336,21 @@ class _VadFlush {
 
 class _AsrSegmentRequest {
   const _AsrSegmentRequest(this.samples, this.sampleRate, {required this.isFinal});
-  final Float32List samples;
+
+  /// The audio samples for this segment, wrapped in a [TransferableTypedData]
+  /// at the construction site (via [_transferableSamples]) so that sending
+  /// this message across the VAD→ASR isolate boundary is a zero-copy
+  /// ownership move instead of Dart's default deep-copy-on-send for
+  /// [TypedData]. The copy cost would otherwise grow with segment length —
+  /// paid on every [simulatedStreamingPartialInterval] partial re-decode of a
+  /// still-growing segment — unlike the single-process reference
+  /// implementation this is ported from.
+  ///
+  /// [TransferableTypedData] is single-use and transfers ownership of the
+  /// underlying buffer: callers must not read the original [Float32List]
+  /// again after wrapping it. See [_transferableSamples]'s doc comment for
+  /// why both call sites in this file are safe to do so.
+  final TransferableTypedData samples;
   final int sampleRate;
 
   /// Whether this is the true final decode of a VAD-closed segment (`true`)
@@ -346,6 +360,23 @@ class _AsrSegmentRequest {
   /// correctly-tagged [RecognitionOutput] without tracking any state of its
   /// own.
   final bool isFinal;
+}
+
+/// Wraps [samples] in a [TransferableTypedData] for a zero-copy isolate
+/// send. Ownership of [samples]'s backing buffer transfers to the result;
+/// [samples] must not be read again afterward in the sending isolate. Both
+/// call sites in this file satisfy that: the periodic-timer re-decode passes
+/// a [GrowingSampleBuffer.slice] result, which always allocates a fresh,
+/// solely-referenced [Float32List] per call; `drainSegments()` passes
+/// `vad.front().samples`, which sherpa_onnx's [sherpa_onnx.SpeechSegment]
+/// already constructs via `Float32List.fromList(...)` — a fresh, exclusively
+/// Dart-owned copy of the native segment's bytes, not a view shared with
+/// anything else — and which is never read again after being sent (the
+/// immediately-following `vad.pop()` only discards the native segment).
+TransferableTypedData _transferableSamples(Float32List samples) {
+  return TransferableTypedData.fromList([
+    Uint8List.view(samples.buffer, samples.offsetInBytes, samples.lengthInBytes),
+  ]);
 }
 
 class _AsrSetLanguage {
@@ -426,7 +457,11 @@ Future<void> _vadIsolateEntry(_VadIsolateInit init) async {
     while (!vad.isEmpty()) {
       final segment = vad.front();
       init.asrSendPort.send(
-        _AsrSegmentRequest(segment.samples, 16000, isFinal: true),
+        _AsrSegmentRequest(
+          _transferableSamples(segment.samples),
+          16000,
+          isFinal: true,
+        ),
       );
       vad.pop();
       resetUtteranceState();
@@ -441,7 +476,9 @@ Future<void> _vadIsolateEntry(_VadIsolateInit init) async {
     if (!isSpeechStarted) return;
     final slice = growingBuffer.slice(speechStartOffset, growingBuffer.length);
     if (slice.isEmpty) return;
-    init.asrSendPort.send(_AsrSegmentRequest(slice, 16000, isFinal: false));
+    init.asrSendPort.send(
+      _AsrSegmentRequest(_transferableSamples(slice), 16000, isFinal: false),
+    );
   });
 
   receivePort.listen((message) {
@@ -523,7 +560,7 @@ Future<void> _asrIsolateEntry(_AsrIsolateInit init) async {
     if (message is _AsrSegmentRequest) {
       final stream = recognizer.createStream();
       stream.acceptWaveform(
-        samples: message.samples,
+        samples: message.samples.materialize().asFloat32List(),
         sampleRate: message.sampleRate,
       );
       recognizer.decode(stream);
