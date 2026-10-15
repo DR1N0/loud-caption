@@ -50,5 +50,6 @@ app.*.map.json
 
 # Agent generated
 docs/superpowers
+docs/plans
 .superpowers
 .claude
