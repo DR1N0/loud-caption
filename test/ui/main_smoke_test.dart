@@ -39,7 +39,7 @@ void main() {
       expect(find.text('正在聆听'), findsOneWidget);
       expect(find.text('A+'), findsOneWidget);
       expect(find.text('A-'), findsOneWidget);
-      expect(find.bySemanticsLabel('切换语言'), findsOneWidget);
+      expect(find.bySemanticsLabel('识别语言'), findsOneWidget);
       expect(find.bySemanticsLabel('切换屏幕方向'), findsOneWidget);
       expect(find.bySemanticsLabel('打开设置'), findsOneWidget);
       expect(awake.enableCalls, 1);
@@ -58,8 +58,7 @@ void main() {
       expect(engine.activeSessionId, sessionBeforeSettings);
       expect(awake.disableCalls, 0);
       expect(find.text('设置'), findsAtLeastNWidgets(1));
-      expect(find.text('中文'), findsAtLeastNWidgets(1));
-      expect(find.text('English'), findsAtLeastNWidgets(1));
+      expect(find.text('暂无可配置项'), findsOneWidget);
       engine.emit(
         SpeechEvent(
           SpeechEventKind.finalText,
@@ -87,48 +86,6 @@ void main() {
       await tester.pump();
     },
   );
-
-  testWidgets('unchecking the active language in Settings replaces its model', (
-    tester,
-  ) async {
-    final engine = _FakeSpeechEngine();
-    final awake = _FakeScreenAwake();
-    await tester.pumpWidget(
-      CaptionApp(
-        engine: engine,
-        settingsStore: _MemorySettingsStore(),
-        microphoneAccess: _FakeMicrophoneAccess(MicAccessState.granted),
-        screenAwake: awake,
-        orientationManager: OrientationManager(setOrientations: (_) async {}),
-      ),
-    );
-    for (var i = 0; i < 5; i++) {
-      await tester.pump();
-    }
-    expect(engine.startedLanguages, ['zh']);
-
-    await tester.tap(find.bySemanticsLabel('打开设置'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-    await tester.tap(find.text('中文'));
-    for (var i = 0; i < 6; i++) {
-      await tester.pump();
-    }
-
-    expect(engine.startedLanguages, ['zh', 'en']);
-    expect(engine.stopCalls, 1);
-    expect(engine.activeSessionId, 2);
-    await tester.tap(find.bySemanticsLabel('返回'));
-    await tester.pump();
-    await tester.pump();
-    expect(find.text('正在聆听'), findsOneWidget);
-    expect(engine.stopCalls, 1);
-    expect(awake.disableCalls, 0);
-
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
-    await tester.pump();
-  });
 
   testWidgets('root stops on background and resumes one session', (
     tester,
@@ -172,9 +129,7 @@ void main() {
 }
 
 class _FakeMicrophoneAccess implements MicrophoneAccess {
-  _FakeMicrophoneAccess([this._state = MicAccessState.denied]);
-
-  MicAccessState _state;
+  MicAccessState _state = MicAccessState.denied;
 
   @override
   Future<bool> openSettings() async => true;
@@ -213,7 +168,6 @@ class _MemorySettingsStore implements SettingsStore {
 class _FakeSpeechEngine implements SpeechEngine {
   var startCalls = 0;
   var stopCalls = 0;
-  final startedLanguages = <String>[];
   int? _activeSessionId;
   final _events = StreamController<SpeechEvent>.broadcast();
 
@@ -227,10 +181,8 @@ class _FakeSpeechEngine implements SpeechEngine {
   Future<void> dispose() => _events.close();
 
   @override
-  Future<int> start(String languageCode) async {
-    startedLanguages.add(languageCode);
-    return _activeSessionId = ++startCalls;
-  }
+  Future<int> start(String languageCode) async =>
+      _activeSessionId = ++startCalls;
 
   @override
   Future<bool> isSessionActive(int sessionId) async =>

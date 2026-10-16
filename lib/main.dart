@@ -98,10 +98,7 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
     try {
       await _navigatorKey.currentState!.push<void>(
         MaterialPageRoute<void>(
-          builder: (_) => SettingsScreen(
-            controller: _controller,
-            onLanguageEnabled: _coordinator.setLanguageEnabled,
-          ),
+          builder: (_) => SettingsScreen(controller: _controller),
         ),
       );
     } finally {

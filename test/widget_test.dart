@@ -74,8 +74,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('设置'), findsOneWidget);
-    expect(find.text('中文'), findsOneWidget);
-    expect(find.text('English'), findsOneWidget);
+    expect(find.text('暂无可配置项'), findsOneWidget);
     expect(find.bySemanticsLabel('返回'), findsOneWidget);
 
     await tester.tap(find.bySemanticsLabel('返回'));
