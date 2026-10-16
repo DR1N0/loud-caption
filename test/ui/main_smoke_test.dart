@@ -11,7 +11,7 @@ import 'package:loud_caption/ui/orientation_manager.dart';
 
 void main() {
   testWidgets(
-    'root keeps permission guidance and the same speech session through settings',
+    'root keeps permission guidance and starts a speech session',
     (tester) async {
       final engine = _FakeSpeechEngine();
       final microphone = _FakeMicrophoneAccess();
@@ -39,47 +39,12 @@ void main() {
       expect(find.text('正在聆听'), findsOneWidget);
       expect(find.text('A+'), findsOneWidget);
       expect(find.text('A-'), findsOneWidget);
-      expect(find.bySemanticsLabel('识别语言'), findsOneWidget);
       expect(find.bySemanticsLabel('切换屏幕方向'), findsOneWidget);
-      expect(find.bySemanticsLabel('打开设置'), findsOneWidget);
+      expect(find.bySemanticsLabel('识别语言'), findsNothing);
+      expect(find.bySemanticsLabel('打开设置'), findsNothing);
       expect(awake.enableCalls, 1);
       expect(find.textContaining('暂停'), findsNothing);
       expect(find.textContaining('恢复'), findsNothing);
-
-      final sessionBeforeSettings = engine.activeSessionId;
-      await tester.tap(find.bySemanticsLabel('打开设置'));
-      await tester.pump();
-      await tester.pump();
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
-
-      expect(engine.stopCalls, 0);
-      expect(engine.startCalls, 1);
-      expect(engine.activeSessionId, sessionBeforeSettings);
-      expect(awake.disableCalls, 0);
-      expect(find.text('设置'), findsAtLeastNWidgets(1));
-      expect(find.text('暂无可配置项'), findsOneWidget);
-      engine.emit(
-        SpeechEvent(
-          SpeechEventKind.finalText,
-          '设置里继续说话',
-          sessionBeforeSettings!,
-        ),
-      );
-      await tester.pump();
-
-      await tester.tap(find.bySemanticsLabel('返回'));
-      await tester.pump();
-      await tester.pump();
-      await tester.pump();
-
-      expect(find.text('正在聆听'), findsOneWidget);
-      expect(find.text('设置里继续说话'), findsOneWidget);
-      expect(engine.startCalls, 1);
-      expect(engine.stopCalls, 0);
-      expect(engine.activeSessionId, sessionBeforeSettings);
-      expect(awake.enableCalls, 1);
-      expect(awake.disableCalls, 0);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();

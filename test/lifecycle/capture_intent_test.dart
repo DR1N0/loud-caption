@@ -3,19 +3,14 @@ import 'package:loud_caption/lifecycle/capture_intent.dart';
 import 'package:loud_caption/permissions/microphone_access.dart';
 
 void main() {
-  test('in-app Settings and inactive do not withdraw capture', () {
+  test('temporary inactivity does not withdraw capture', () {
     final active = CaptureIntent(
       presence: CapturePresence.foreground,
-      route: CaptureRoute.caption,
       access: MicAccessState.granted,
       permissionFresh: true,
     );
 
     expect(active.captureDesired, isTrue);
-    expect(
-      active.copyWith(route: CaptureRoute.settings).captureDesired,
-      isTrue,
-    );
     expect(active.mayStartCapture, isTrue);
 
     final unfocused = active.copyWith(
@@ -35,20 +30,18 @@ void main() {
   test('copyWith preserves omitted intent fields', () {
     final intent = CaptureIntent(
       presence: CapturePresence.temporarilyInactive,
-      route: CaptureRoute.openingSettings,
       access: MicAccessState.permanentlyDenied,
       permissionFresh: false,
       terminal: true,
       stopFailed: true,
     );
 
-    final changed = intent.copyWith(route: CaptureRoute.settings);
+    final changed = intent.copyWith(stopFailed: false);
 
     expect(changed.presence, intent.presence);
-    expect(changed.route, CaptureRoute.settings);
     expect(changed.access, intent.access);
     expect(changed.permissionFresh, intent.permissionFresh);
     expect(changed.terminal, intent.terminal);
-    expect(changed.stopFailed, intent.stopFailed);
+    expect(changed.stopFailed, isFalse);
   });
 }

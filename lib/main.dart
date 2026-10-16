@@ -13,7 +13,6 @@ import 'speech/speech_engine.dart';
 import 'speech/vad_chunked_sense_voice_strategy.dart';
 import 'ui/caption_screen.dart';
 import 'ui/orientation_manager.dart';
-import 'ui/settings_screen.dart';
 
 void main() {
   runApp(const CaptionApp());
@@ -45,7 +44,6 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
   late final CaptionController _controller;
   late final CaptionLifecycleCoordinator _coordinator;
   late final OrientationManager _orientationManager;
-  final _navigatorKey = GlobalKey<NavigatorState>();
   bool _ready = false;
   String? _initializationError;
 
@@ -93,19 +91,6 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _openSettings() async {
-    _coordinator.onInAppSettingsOpened();
-    try {
-      await _navigatorKey.currentState!.push<void>(
-        MaterialPageRoute<void>(
-          builder: (_) => SettingsScreen(controller: _controller),
-        ),
-      );
-    } finally {
-      _coordinator.onInAppSettingsClosed();
-    }
-  }
-
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -120,18 +105,13 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      navigatorKey: _navigatorKey,
       title: 'Loud Caption',
       theme: ThemeData.dark(useMaterial3: true),
       home: !_ready
           ? const Scaffold(body: Center(child: CircularProgressIndicator()))
           : _initializationError != null
           ? Scaffold(body: Center(child: Text(_initializationError!)))
-          : CaptionScreen(
-              controller: _controller,
-              coordinator: _coordinator,
-              onOpenSettings: _openSettings,
-            ),
+          : CaptionScreen(controller: _controller, coordinator: _coordinator),
     );
   }
 }

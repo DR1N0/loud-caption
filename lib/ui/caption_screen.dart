@@ -13,19 +13,16 @@ class CaptionScreen extends StatefulWidget {
     super.key,
     required this.controller,
     required this.coordinator,
-    required this.onOpenSettings,
   });
 
   final CaptionController controller;
   final CaptionLifecycleCoordinator coordinator;
-  final Future<void> Function() onOpenSettings;
 
   @override
   State<CaptionScreen> createState() => _CaptionScreenState();
 }
 
 class _CaptionScreenState extends State<CaptionScreen> {
-  bool _openingSettings = false;
   String? _actionError;
 
   @override
@@ -64,25 +61,6 @@ class _CaptionScreenState extends State<CaptionScreen> {
             if (mounted) setState(() => _actionError = '操作失败: $error');
           }),
     );
-  }
-
-  Future<void> _openSettings() async {
-    if (_openingSettings) return;
-    setState(() {
-      _openingSettings = true;
-      _actionError = null;
-    });
-    _setSystemUiMode(SystemUiMode.edgeToEdge);
-    try {
-      await widget.onOpenSettings();
-    } catch (error) {
-      if (mounted) setState(() => _actionError = '无法打开设置: $error');
-    } finally {
-      if (mounted) {
-        _setSystemUiMode(SystemUiMode.immersiveSticky);
-        setState(() => _openingSettings = false);
-      }
-    }
   }
 
   @override
@@ -244,7 +222,7 @@ class _CaptionScreenState extends State<CaptionScreen> {
   }
 
   /// In the landscape side rail, the bar is rotated in place rather than
-  /// re-laid-out: the end nearest the edge that becomes the top (设置) ends
+  /// re-laid-out: the end nearest the edge that becomes the top (方向) ends
   /// up on top, so the vertical order is the horizontal order reversed.
   Widget _controls({required bool vertical}) {
     final buttons = [
@@ -260,7 +238,6 @@ class _CaptionScreenState extends State<CaptionScreen> {
         text: 'A-',
         onPressed: () => _runAction(widget.coordinator.decreaseFont),
       ),
-      _languageControl(),
       _controlButton(
         semanticLabel: '切换屏幕方向',
         icon: Icons.screen_rotation,
@@ -268,12 +245,6 @@ class _CaptionScreenState extends State<CaptionScreen> {
         onPressed: widget.coordinator.orientationChangeInFlight
             ? null
             : () => _runAction(widget.coordinator.toggleOrientation),
-      ),
-      _controlButton(
-        semanticLabel: '打开设置',
-        icon: Icons.settings,
-        text: '设置',
-        onPressed: _openingSettings ? null : () => unawaited(_openSettings()),
       ),
     ];
     final ordered = vertical ? buttons.reversed.toList() : buttons;
@@ -287,13 +258,6 @@ class _CaptionScreenState extends State<CaptionScreen> {
           : Row(children: slots),
     );
   }
-
-  Widget _languageControl() => _controlButton(
-    semanticLabel: '识别语言',
-    icon: Icons.language,
-    text: '自动/auto',
-    onPressed: null,
-  );
 
   Widget _controlButton({
     required String semanticLabel,

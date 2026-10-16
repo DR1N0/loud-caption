@@ -44,7 +44,7 @@ void main() {
   });
 
   test(
-    'rotation and in-app Settings preserve a live session and wakelock',
+    'rotation preserves a live session and wakelock',
     () async {
       await coordinator.initialize();
       final session = controller.currentSessionId;
@@ -56,8 +56,6 @@ void main() {
       orientation.holdApply = applying.future;
       final rotation = coordinator.toggleOrientation();
       await _flush();
-      coordinator.onInAppSettingsOpened();
-      coordinator.onInAppSettingsClosed();
 
       expect(engine.stopCalls, 0);
       expect(engine.startCalls, 1);
@@ -74,7 +72,7 @@ void main() {
   );
 
   test(
-    'held orientation and Settings do not delay a real background stop',
+    'held orientation does not delay a real background stop',
     () async {
       await coordinator.initialize();
       final applying = Completer<void>();
@@ -84,7 +82,6 @@ void main() {
 
       final rotation = coordinator.toggleOrientation();
       await _flush();
-      coordinator.onInAppSettingsOpened();
       final paused = coordinator.onAppLifecycle(AppLifecycleState.paused);
       final resumed = coordinator.onAppLifecycle(AppLifecycleState.resumed);
       await _flush();

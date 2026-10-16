@@ -50,43 +50,6 @@ void main() {
     expect(engine.disposed, isTrue);
   });
 
-  testWidgets('the only secondary route is the language settings screen', (
-    tester,
-  ) async {
-    final engine = _FakeSpeechEngine();
-    await tester.pumpWidget(
-      CaptionApp(
-        engine: engine,
-        settingsStore: _MemorySettingsStore(),
-        microphoneAccess: _GrantedMicrophoneAccess(),
-        screenAwake: _NoopScreenAwake(),
-        orientationManager: OrientationManager(setOrientations: (_) async {}),
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-
-    await tester.tap(find.bySemanticsLabel('打开设置'));
-    await tester.pump();
-    await tester.pump();
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-
-    expect(find.text('设置'), findsOneWidget);
-    expect(find.text('暂无可配置项'), findsOneWidget);
-    expect(find.bySemanticsLabel('返回'), findsOneWidget);
-
-    await tester.tap(find.bySemanticsLabel('返回'));
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.bySemanticsLabel('打开设置'), findsOneWidget);
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
-    await tester.pump();
-  });
-
   testWidgets(
     'a recreated root applies its saved orientation before captions',
     (tester) async {

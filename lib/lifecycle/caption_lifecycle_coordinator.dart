@@ -39,7 +39,6 @@ class CaptionLifecycleCoordinator extends ChangeNotifier {
 
   CaptureIntent _intent = const CaptureIntent(
     presence: CapturePresence.foreground,
-    route: CaptureRoute.caption,
     access: null,
     permissionFresh: false,
   );
@@ -151,16 +150,6 @@ class CaptionLifecycleCoordinator extends ChangeNotifier {
   }
 
   Future<bool> openPermissionSettings() => _microphoneAccess.openSettings();
-
-  void onInAppSettingsOpened() {
-    if (_disposed) return;
-    _replaceIntent(_intent.copyWith(route: CaptureRoute.settings));
-  }
-
-  void onInAppSettingsClosed() {
-    if (_disposed) return;
-    _replaceIntent(_intent.copyWith(route: CaptureRoute.caption));
-  }
 
   Future<void> increaseFont() => _writeSetting(_controller.increaseFont);
 
