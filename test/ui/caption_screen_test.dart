@@ -50,7 +50,8 @@ void main() {
 
     expect(find.bySemanticsLabel('增大字幕字号'), findsOneWidget);
     expect(find.bySemanticsLabel('减小字幕字号'), findsOneWidget);
-    expect(find.bySemanticsLabel('切换语言'), findsOneWidget);
+    expect(find.bySemanticsLabel('识别语言'), findsOneWidget);
+    expect(find.text('自动/auto'), findsOneWidget);
     expect(find.bySemanticsLabel('切换屏幕方向'), findsOneWidget);
     expect(find.bySemanticsLabel('打开设置'), findsOneWidget);
     expect(find.textContaining('暂停'), findsNothing);
@@ -70,68 +71,6 @@ void main() {
     await fixture.advance(tester);
     expect(fixture.store.value.fontSize, 48);
     expect(fixture.engine.stopCalls, 0);
-    await fixture.close(tester);
-  });
-
-  testWidgets('one enabled language disables the switch control', (
-    tester,
-  ) async {
-    final fixture = _Fixture(
-      settings: CaptionSettings(enabledLanguages: const ['zh']),
-    );
-    await fixture.pump(tester);
-
-    final switchButton = tester.widget<IconButton>(
-      find.byWidgetPredicate(
-        (widget) => widget is IconButton && widget.tooltip == '切换语言',
-      ),
-    );
-    expect(switchButton.onPressed, isNull);
-    expect(fixture.engine.startCalls, 1);
-    await fixture.close(tester);
-  });
-
-  testWidgets('two languages switch the model without clearing the last line', (
-    tester,
-  ) async {
-    final fixture = _Fixture();
-    await fixture.pump(tester);
-    fixture.engine.emit(
-      SpeechEvent(
-        SpeechEventKind.finalText,
-        '上一句',
-        fixture.engine.activeSessionId!,
-      ),
-    );
-    await fixture.advance(tester);
-
-    await tester.tap(find.bySemanticsLabel('切换语言'));
-    await fixture.advance(tester);
-    expect(fixture.engine.startedLanguages, ['zh', 'en']);
-    expect(fixture.engine.stopCalls, 1);
-    expect(find.text('上一句'), findsOneWidget);
-    await fixture.close(tester);
-  });
-
-  testWidgets('three enabled languages use a picker', (tester) async {
-    final fixture = _Fixture(
-      settings: CaptionSettings(
-        catalog: const [
-          InstalledLanguage('zh', '中文'),
-          InstalledLanguage('en', 'English'),
-          InstalledLanguage('es', 'Español'),
-        ],
-        enabledLanguages: const ['zh', 'en', 'es'],
-      ),
-    );
-    await fixture.pump(tester);
-
-    await tester.tap(find.byType(PopupMenuButton<String>));
-    await tester.pump(const Duration(seconds: 1));
-    await tester.pump(const Duration(seconds: 1));
-    await tester.tap(find.text('Español'));
-    await fixture.advance(tester);
-    expect(fixture.engine.startedLanguages, ['zh', 'es']);
     await fixture.close(tester);
   });
 
@@ -186,10 +125,9 @@ void main() {
 class _Fixture {
   _Fixture({
     MicAccessState access = MicAccessState.granted,
-    CaptionSettings? settings,
     SetOrientations? setOrientations,
   }) : microphone = _FakeMicrophoneAccess(access),
-       store = _MemorySettingsStore(settings ?? CaptionSettings()),
+       store = _MemorySettingsStore(CaptionSettings()),
        orientationManager = OrientationManager(
          setOrientations: setOrientations ?? (_) async {},
        );

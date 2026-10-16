@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import '../captions/caption_controller.dart';
 import '../lifecycle/caption_lifecycle_coordinator.dart';
 import '../permissions/microphone_access.dart';
-import '../settings/app_settings.dart';
 
 /// Full-screen captions; recording policy belongs to the app coordinator.
 class CaptionScreen extends StatefulWidget {
@@ -84,15 +83,6 @@ class _CaptionScreenState extends State<CaptionScreen> {
         setState(() => _openingSettings = false);
       }
     }
-  }
-
-  Future<void> _toggleLanguage() async {
-    final enabled = widget.controller.settings.enabledLanguages;
-    if (enabled.length != 2) return;
-    final current = widget.controller.settings.languageCode;
-    await widget.coordinator.selectLanguage(
-      enabled.firstWhere((language) => language != current),
-    );
   }
 
   @override
@@ -200,7 +190,7 @@ class _CaptionScreenState extends State<CaptionScreen> {
             ),
           ),
         ),
-        _controls(controller.settings),
+        _controls(),
       ],
     );
   }
@@ -244,7 +234,7 @@ class _CaptionScreenState extends State<CaptionScreen> {
     );
   }
 
-  Widget _controls(CaptionSettings settings) => Padding(
+  Widget _controls() => Padding(
     padding: const EdgeInsets.all(12),
     child: Wrap(
       alignment: WrapAlignment.spaceEvenly,
@@ -263,7 +253,7 @@ class _CaptionScreenState extends State<CaptionScreen> {
           text: 'A-',
           onPressed: () => _runAction(widget.coordinator.decreaseFont),
         ),
-        _languageControl(settings),
+        _languageControl(),
         _controlButton(
           semanticLabel: '切换屏幕方向',
           icon: Icons.screen_rotation,
@@ -282,39 +272,12 @@ class _CaptionScreenState extends State<CaptionScreen> {
     ),
   );
 
-  Widget _languageControl(CaptionSettings settings) {
-    final enabled = settings.enabledLanguages;
-    final name = settings.catalog
-        .firstWhere((language) => language.code == settings.languageCode)
-        .displayName;
-    if (enabled.length >= 3) {
-      return Semantics(
-        label: '切换语言',
-        button: true,
-        child: PopupMenuButton<String>(
-          tooltip: '切换语言',
-          offset: Offset(0, -56.0 * enabled.length),
-          onSelected: (languageCode) =>
-              _runAction(() => widget.coordinator.selectLanguage(languageCode)),
-          itemBuilder: (context) => [
-            for (final language in settings.catalog)
-              if (enabled.contains(language.code))
-                PopupMenuItem(
-                  value: language.code,
-                  child: Text(language.displayName),
-                ),
-          ],
-          child: _controlBody(Icons.language, name),
-        ),
-      );
-    }
-    return _controlButton(
-      semanticLabel: '切换语言',
-      icon: Icons.language,
-      text: name,
-      onPressed: enabled.length == 2 ? () => _runAction(_toggleLanguage) : null,
-    );
-  }
+  Widget _languageControl() => _controlButton(
+    semanticLabel: '识别语言',
+    icon: Icons.language,
+    text: '自动/auto',
+    onPressed: null,
+  );
 
   Widget _controlButton({
     required String semanticLabel,
