@@ -1,206 +1,38 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-const List<InstalledLanguage> _defaultCatalog = [
-  InstalledLanguage('zh', '中文'),
-  InstalledLanguage('en', 'English'),
-];
-
-/// A language pack that is available on this device.
-class InstalledLanguage {
-  const InstalledLanguage(this.code, this.displayName);
-
-  final String code;
-  final String displayName;
-
-  @override
-  bool operator ==(Object other) =>
-      other is InstalledLanguage &&
-      other.code == code &&
-      other.displayName == displayName;
-
-  @override
-  int get hashCode => Object.hash(code, displayName);
-}
-
 /// The user-configurable caption preferences.
 class CaptionSettings {
-  factory CaptionSettings({
-    String languageCode = 'zh',
-    List<String> enabledLanguages = const ['zh', 'en'],
-    double fontSize = 48.0,
-    bool landscape = false,
-    List<InstalledLanguage> catalog = _defaultCatalog,
-  }) {
-    final copiedCatalog = _validatedCatalog(catalog);
-    final copiedEnabled = _validatedEnabledLanguages(
-      enabledLanguages,
-      copiedCatalog,
-    );
-    if (!copiedEnabled.contains(languageCode)) {
-      throw ArgumentError.value(
-        languageCode,
-        'languageCode',
-        'Language must be enabled.',
-      );
-    }
-    return CaptionSettings._(
-      languageCode,
-      copiedEnabled,
-      _nearestFontSize(fontSize),
-      landscape,
-      copiedCatalog,
-    );
-  }
+  factory CaptionSettings({double fontSize = 48.0, bool landscape = false}) =>
+      CaptionSettings._(_nearestFontSize(fontSize), landscape);
 
-  const CaptionSettings._(
-    this._languageCode,
-    this._enabledLanguages,
-    this._fontSize,
-    this._landscape,
-    this._catalog,
-  );
+  const CaptionSettings._(this._fontSize, this._landscape);
 
-  static const List<InstalledLanguage> defaultCatalog = _defaultCatalog;
   static const List<double> fontSizePresets = [32, 48, 64, 80];
 
-  final String _languageCode;
-  final List<String> _enabledLanguages;
   final double _fontSize;
   final bool _landscape;
-  final List<InstalledLanguage> _catalog;
 
-  String get languageCode => _languageCode;
-  List<String> get enabledLanguages => _enabledLanguages;
   double get fontSize => _fontSize;
   bool get landscape => _landscape;
-  List<InstalledLanguage> get catalog => _catalog;
-
-  CaptionSettings withLanguageEnabled(String code, bool enabled) {
-    _requireInstalled(code);
-
-    if (!enabled &&
-        _enabledLanguages.length == 1 &&
-        _enabledLanguages.single == code) {
-      return this;
-    }
-
-    final changed = <String>{..._enabledLanguages};
-    if (enabled) {
-      changed.add(code);
-    } else {
-      changed.remove(code);
-    }
-    final ordered = _catalog
-        .where((language) => changed.contains(language.code))
-        .map((language) => language.code)
-        .toList();
-
-    return _copy(
-      languageCode: ordered.contains(languageCode)
-          ? languageCode
-          : ordered.first,
-      enabledLanguages: ordered,
-    );
-  }
-
-  CaptionSettings withLanguage(String code) {
-    if (!_enabledLanguages.contains(code)) {
-      throw ArgumentError.value(code, 'code', 'Language must be enabled.');
-    }
-    return _copy(languageCode: code);
-  }
 
   CaptionSettings withFontSize(double size) => _copy(fontSize: size);
 
   CaptionSettings withLandscape(bool value) => _copy(landscape: value);
 
-  CaptionSettings _copy({
-    String? languageCode,
-    List<String>? enabledLanguages,
-    double? fontSize,
-    bool? landscape,
-  }) => CaptionSettings(
-    languageCode: languageCode ?? this.languageCode,
-    enabledLanguages: enabledLanguages ?? _enabledLanguages,
-    fontSize: fontSize ?? this.fontSize,
-    landscape: landscape ?? this.landscape,
-    catalog: _catalog,
-  );
-
-  void _requireInstalled(String code) {
-    if (!_catalog.any((language) => language.code == code)) {
-      throw ArgumentError.value(code, 'code', 'Language is not installed.');
-    }
-  }
+  CaptionSettings _copy({double? fontSize, bool? landscape}) =>
+      CaptionSettings(
+        fontSize: fontSize ?? this.fontSize,
+        landscape: landscape ?? this.landscape,
+      );
 
   @override
   bool operator ==(Object other) =>
       other is CaptionSettings &&
-      other.languageCode == languageCode &&
       other.fontSize == fontSize &&
-      other.landscape == landscape &&
-      _sameItems(other.enabledLanguages, enabledLanguages) &&
-      _sameItems(other.catalog, catalog);
+      other.landscape == landscape;
 
   @override
-  int get hashCode => Object.hash(
-    languageCode,
-    fontSize,
-    landscape,
-    Object.hashAll(enabledLanguages),
-    Object.hashAll(catalog),
-  );
-}
-
-List<InstalledLanguage> _validatedCatalog(List<InstalledLanguage> catalog) {
-  if (catalog.isEmpty) {
-    throw ArgumentError.value(catalog, 'catalog', 'Catalog cannot be empty.');
-  }
-  final codes = <String>{};
-  for (final language in catalog) {
-    if (language.code.isEmpty || !codes.add(language.code)) {
-      throw ArgumentError.value(
-        catalog,
-        'catalog',
-        'Catalog codes must be nonempty and unique.',
-      );
-    }
-  }
-  return List<InstalledLanguage>.unmodifiable(catalog);
-}
-
-List<String> _validatedEnabledLanguages(
-  List<String> enabledLanguages,
-  List<InstalledLanguage> catalog,
-) {
-  if (enabledLanguages.isEmpty) {
-    throw ArgumentError.value(
-      enabledLanguages,
-      'enabledLanguages',
-      'At least one language must be enabled.',
-    );
-  }
-  final enabled = enabledLanguages.toSet();
-  if (enabled.length != enabledLanguages.length) {
-    throw ArgumentError.value(
-      enabledLanguages,
-      'enabledLanguages',
-      'Enabled language codes must be unique.',
-    );
-  }
-  final installed = catalog.map((language) => language.code).toSet();
-  if (!enabled.every(installed.contains)) {
-    throw ArgumentError.value(
-      enabledLanguages,
-      'enabledLanguages',
-      'Enabled languages must be installed.',
-    );
-  }
-  return List<String>.unmodifiable(
-    catalog
-        .where((language) => enabled.contains(language.code))
-        .map((language) => language.code),
-  );
+  int get hashCode => Object.hash(fontSize, landscape);
 }
 
 double _nearestFontSize(double size) {
@@ -211,14 +43,6 @@ double _nearestFontSize(double size) {
     }
   }
   return closest;
-}
-
-bool _sameItems<T>(List<T> left, List<T> right) {
-  if (left.length != right.length) return false;
-  for (var index = 0; index < left.length; index++) {
-    if (left[index] != right[index]) return false;
-  }
-  return true;
 }
 
 abstract interface class SettingsStore {
@@ -257,70 +81,28 @@ class SettingsPersistenceException implements Exception {
 
 /// Persists caption preferences using the platform shared-preferences store.
 class SharedPreferencesSettingsStore implements SettingsStore {
-  SharedPreferencesSettingsStore({
-    List<InstalledLanguage> catalog = CaptionSettings.defaultCatalog,
-    SettingsPreferences? preferences,
-  }) : _catalog = _validatedCatalog(catalog),
-       _injectedPreferences = preferences;
+  SharedPreferencesSettingsStore({SettingsPreferences? preferences})
+    : _injectedPreferences = preferences;
 
-  static const languageKey = 'caption.language';
-  static const enabledLanguagesKey = 'caption.enabledLanguages';
   static const fontSizeKey = 'caption.fontSize';
   static const landscapeKey = 'caption.landscape';
 
-  final List<InstalledLanguage> _catalog;
   final SettingsPreferences? _injectedPreferences;
 
   @override
   Future<CaptionSettings> load() async {
     final preferences = await _preferences();
-    final savedEnabled =
-        preferences.getStringList(enabledLanguagesKey) ??
-        _catalog.map((language) => language.code).toList();
-    final enabled = _catalog
-        .where((language) => savedEnabled.contains(language.code))
-        .map((language) => language.code)
-        .toList();
-    if (enabled.isEmpty) {
-      enabled.addAll(_catalog.map((language) => language.code));
-    }
-
-    final savedLanguage = preferences.getString(languageKey);
     return CaptionSettings(
-      languageCode: enabled.contains(savedLanguage)
-          ? savedLanguage!
-          : enabled.first,
-      enabledLanguages: enabled,
       fontSize: preferences.getDouble(fontSizeKey) ?? 48,
       landscape: preferences.getBool(landscapeKey) ?? false,
-      catalog: _catalog,
     );
   }
 
   @override
   Future<void> save(CaptionSettings settings) async {
-    if (!_sameItems(settings.catalog, _catalog)) {
-      throw ArgumentError.value(
-        settings,
-        'settings',
-        'Settings catalog must match the installed catalog.',
-      );
-    }
-
     final preferences = await _preferences();
     final snapshot = _SettingsSnapshot.capture(preferences);
     try {
-      await _write(
-        preferences.setString(languageKey, settings.languageCode),
-        languageKey,
-      );
-      await _write(
-        preferences.setStringList(
-          enabledLanguagesKey,
-          settings.enabledLanguages,
-        ),
-        enabledLanguagesKey,
-      );
       await _write(
         preferences.setDouble(fontSizeKey, settings.fontSize),
         fontSizeKey,
@@ -379,28 +161,10 @@ class _SharedPreferencesAdapter implements SettingsPreferences {
 }
 
 class _SettingsSnapshot {
-  _SettingsSnapshot({
-    required this.language,
-    required this.enabledLanguages,
-    required this.fontSize,
-    required this.landscape,
-  });
+  _SettingsSnapshot({required this.fontSize, required this.landscape});
 
   factory _SettingsSnapshot.capture(SettingsPreferences preferences) =>
       _SettingsSnapshot(
-        language: _StoredValue.capture(
-          preferences,
-          SharedPreferencesSettingsStore.languageKey,
-          () =>
-              preferences.getString(SharedPreferencesSettingsStore.languageKey),
-        ),
-        enabledLanguages: _StoredValue.capture(
-          preferences,
-          SharedPreferencesSettingsStore.enabledLanguagesKey,
-          () => preferences.getStringList(
-            SharedPreferencesSettingsStore.enabledLanguagesKey,
-          ),
-        ),
         fontSize: _StoredValue.capture(
           preferences,
           SharedPreferencesSettingsStore.fontSizeKey,
@@ -415,8 +179,6 @@ class _SettingsSnapshot {
         ),
       );
 
-  final _StoredValue<String> language;
-  final _StoredValue<List<String>> enabledLanguages;
   final _StoredValue<double> fontSize;
   final _StoredValue<bool> landscape;
 
@@ -430,26 +192,6 @@ class _SettingsSnapshot {
       }
     }
 
-    await attempt(
-      () => language.restore(
-        preferences,
-        SharedPreferencesSettingsStore.languageKey,
-        (value) => preferences.setString(
-          SharedPreferencesSettingsStore.languageKey,
-          value,
-        ),
-      ),
-    );
-    await attempt(
-      () => enabledLanguages.restore(
-        preferences,
-        SharedPreferencesSettingsStore.enabledLanguagesKey,
-        (value) => preferences.setStringList(
-          SharedPreferencesSettingsStore.enabledLanguagesKey,
-          value,
-        ),
-      ),
-    );
     await attempt(
       () => fontSize.restore(
         preferences,

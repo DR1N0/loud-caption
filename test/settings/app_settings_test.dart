@@ -10,102 +10,8 @@ void main() {
   test('fresh settings use the phase-one defaults', () {
     final settings = CaptionSettings();
 
-    expect(settings.languageCode, 'zh');
-    expect(settings.enabledLanguages, ['zh', 'en']);
     expect(settings.fontSize, 48.0);
     expect(settings.landscape, isFalse);
-    expect(settings.catalog, const [
-      InstalledLanguage('zh', '中文'),
-      InstalledLanguage('en', 'English'),
-    ]);
-  });
-
-  test('construction rejects invalid language selection and catalogs', () {
-    expect(() => CaptionSettings(enabledLanguages: []), throwsArgumentError);
-    expect(
-      () => CaptionSettings(enabledLanguages: ['zh', 'zh']),
-      throwsArgumentError,
-    );
-    expect(
-      () => CaptionSettings(enabledLanguages: ['ko']),
-      throwsArgumentError,
-    );
-    expect(
-      () => CaptionSettings(languageCode: 'en', enabledLanguages: ['zh']),
-      throwsArgumentError,
-    );
-    expect(() => CaptionSettings(catalog: []), throwsArgumentError);
-    expect(
-      () => CaptionSettings(
-        catalog: const [
-          InstalledLanguage('zh', '中文'),
-          InstalledLanguage('zh', 'Chinese'),
-        ],
-      ),
-      throwsArgumentError,
-    );
-  });
-
-  test('construction copies caller-owned lists into immutable storage', () {
-    final enabled = ['zh'];
-    final catalog = [
-      const InstalledLanguage('zh', '中文'),
-      const InstalledLanguage('en', 'English'),
-    ];
-    final settings = CaptionSettings(
-      enabledLanguages: enabled,
-      catalog: catalog,
-    );
-    final originalHashCode = settings.hashCode;
-
-    enabled.add('en');
-    catalog.add(const InstalledLanguage('ja', '日本語'));
-
-    expect(settings.enabledLanguages, ['zh']);
-    expect(settings.catalog, [
-      const InstalledLanguage('zh', '中文'),
-      const InstalledLanguage('en', 'English'),
-    ]);
-    expect(settings.hashCode, originalHashCode);
-    expect(() => settings.enabledLanguages.add('en'), throwsUnsupportedError);
-    expect(
-      () => settings.catalog.add(const InstalledLanguage('ja', '日本語')),
-      throwsUnsupportedError,
-    );
-  });
-
-  test('the last enabled language cannot be disabled', () {
-    final settings = CaptionSettings(enabledLanguages: ['zh']);
-
-    expect(settings.withLanguageEnabled('zh', false).enabledLanguages, ['zh']);
-  });
-
-  test('disabling the active language selects the first enabled language', () {
-    final settings = CaptionSettings(languageCode: 'en');
-
-    final updated = settings.withLanguageEnabled('en', false);
-
-    expect(updated.enabledLanguages, ['zh']);
-    expect(updated.languageCode, 'zh');
-  });
-
-  test('language changes reject disabled and unknown language codes', () {
-    final settings = CaptionSettings(enabledLanguages: ['zh']);
-
-    expect(() => settings.withLanguage('en'), throwsArgumentError);
-    expect(() => settings.withLanguageEnabled('ko', true), throwsArgumentError);
-  });
-
-  test('language enabling preserves the installed catalog order', () {
-    final settings = CaptionSettings(
-      languageCode: 'en',
-      enabledLanguages: ['en'],
-    );
-
-    expect(settings.withLanguageEnabled('zh', true).enabledLanguages, [
-      'zh',
-      'en',
-    ]);
   });
 
   test('font size selects the nearest supported preset', () {
@@ -117,123 +23,31 @@ void main() {
     expect(settings.withLandscape(true).landscape, isTrue);
   });
 
-  test(
-    'save and reload retain language, font, orientation, and enabled list',
-    () async {
-      final store = SharedPreferencesSettingsStore();
-      final settings = CaptionSettings(
-        languageCode: 'en',
-        enabledLanguages: ['zh', 'en'],
-        fontSize: 64,
-        landscape: true,
-      );
+  test('save and reload retain font size and orientation', () async {
+    final store = SharedPreferencesSettingsStore();
+    final settings = CaptionSettings(fontSize: 64, landscape: true);
 
-      await store.save(settings);
-      final reloaded = await SharedPreferencesSettingsStore().load();
+    await store.save(settings);
+    final reloaded = await SharedPreferencesSettingsStore().load();
 
-      expect(reloaded, settings);
-    },
-  );
+    expect(reloaded, settings);
+  });
 
-  test(
-    'load discards unknown ids and falls back to the first enabled language',
-    () async {
-      SharedPreferences.setMockInitialValues({
-        SharedPreferencesSettingsStore.enabledLanguagesKey: ['ko', 'en'],
-        SharedPreferencesSettingsStore.languageKey: 'ko',
-        SharedPreferencesSettingsStore.fontSizeKey: 64.0,
-        SharedPreferencesSettingsStore.landscapeKey: true,
-      });
+  test('load falls back to defaults when nothing is persisted', () async {
+    final settings = await SharedPreferencesSettingsStore().load();
 
-      final settings = await SharedPreferencesSettingsStore().load();
-
-      expect(settings.enabledLanguages, ['en']);
-      expect(settings.languageCode, 'en');
-      expect(settings.fontSize, 64.0);
-      expect(settings.landscape, isTrue);
-    },
-  );
-
-  test(
-    'load restores all installed languages when persisted ids are invalid',
-    () async {
-      SharedPreferences.setMockInitialValues({
-        SharedPreferencesSettingsStore.enabledLanguagesKey: ['ko'],
-        SharedPreferencesSettingsStore.languageKey: 'ko',
-      });
-
-      final settings = await SharedPreferencesSettingsStore().load();
-
-      expect(settings.enabledLanguages, ['zh', 'en']);
-      expect(settings.languageCode, 'zh');
-    },
-  );
-
-  test(
-    'an injected installed-language catalog supports a third UI-test language',
-    () async {
-      const catalog = [
-        InstalledLanguage('zh', '中文'),
-        InstalledLanguage('en', 'English'),
-        InstalledLanguage('ja', '日本語'),
-      ];
-      final store = SharedPreferencesSettingsStore(catalog: catalog);
-      final settings = CaptionSettings(
-        languageCode: 'ja',
-        enabledLanguages: ['ja'],
-        catalog: catalog,
-      );
-
-      await store.save(settings);
-      final reloaded = await store.load();
-
-      expect(reloaded.catalog, catalog);
-      expect(reloaded.enabledLanguages, ['ja']);
-      expect(reloaded.languageCode, 'ja');
-    },
-  );
-
-  test(
-    'save rejects settings built with a different installed catalog',
-    () async {
-      final preferences = _MemorySettingsPreferences({});
-      final store = SharedPreferencesSettingsStore(preferences: preferences);
-      const catalog = [
-        InstalledLanguage('zh', '中文'),
-        InstalledLanguage('en', 'English'),
-        InstalledLanguage('ja', '日本語'),
-      ];
-      final settings = CaptionSettings(
-        languageCode: 'ja',
-        enabledLanguages: ['ja'],
-        catalog: catalog,
-      );
-
-      await expectLater(store.save(settings), throwsArgumentError);
-
-      expect(preferences.writeAttempts, 0);
-      expect(preferences.values, isEmpty);
-    },
-  );
+    expect(settings.fontSize, 48.0);
+    expect(settings.landscape, isFalse);
+  });
 
   test('a false write restores the prior coherent settings', () async {
-    final oldSettings = CaptionSettings(
-      languageCode: 'zh',
-      enabledLanguages: ['zh'],
-      fontSize: 48,
-      landscape: false,
-    );
+    final oldSettings = CaptionSettings(fontSize: 48, landscape: false);
     final preferences = _MemorySettingsPreferences(
       _serialized(oldSettings),
-      failOnWrite: 3,
+      failOnWrite: 2,
     );
     final store = SharedPreferencesSettingsStore(preferences: preferences);
-    final updated = CaptionSettings(
-      languageCode: 'en',
-      enabledLanguages: ['zh', 'en'],
-      fontSize: 80,
-      landscape: true,
-    );
+    final updated = CaptionSettings(fontSize: 80, landscape: true);
 
     await expectLater(
       store.save(updated),
@@ -244,24 +58,14 @@ void main() {
   });
 
   test('a thrown write restores the prior coherent settings', () async {
-    final oldSettings = CaptionSettings(
-      languageCode: 'zh',
-      enabledLanguages: ['zh'],
-      fontSize: 48,
-      landscape: false,
-    );
+    final oldSettings = CaptionSettings(fontSize: 48, landscape: false);
     final preferences = _MemorySettingsPreferences(
       _serialized(oldSettings),
       failOnWrite: 2,
       throwOnFailure: true,
     );
     final store = SharedPreferencesSettingsStore(preferences: preferences);
-    final updated = CaptionSettings(
-      languageCode: 'en',
-      enabledLanguages: ['zh', 'en'],
-      fontSize: 80,
-      landscape: true,
-    );
+    final updated = CaptionSettings(fontSize: 80, landscape: true);
 
     await expectLater(
       store.save(updated),
@@ -273,10 +77,6 @@ void main() {
 }
 
 Map<String, Object> _serialized(CaptionSettings settings) => {
-  SharedPreferencesSettingsStore.languageKey: settings.languageCode,
-  SharedPreferencesSettingsStore.enabledLanguagesKey: List<String>.from(
-    settings.enabledLanguages,
-  ),
   SharedPreferencesSettingsStore.fontSizeKey: settings.fontSize,
   SharedPreferencesSettingsStore.landscapeKey: settings.landscape,
 };
