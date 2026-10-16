@@ -10,6 +10,18 @@ void main() {
     expect(done.kind, SpeechEventKind.finalText);
   });
 
+  test('detectedLanguage defaults to null and round-trips when provided', () {
+    const withoutLanguage = SpeechEvent(SpeechEventKind.partial, '你好', 7);
+    const withLanguage = SpeechEvent(
+      SpeechEventKind.finalText,
+      '你好',
+      7,
+      detectedLanguage: 'zh',
+    );
+    expect(withoutLanguage.detectedLanguage, isNull);
+    expect(withLanguage.detectedLanguage, 'zh');
+  });
+
   test('SpeechEngineConfigOption round-trips its fields', () {
     const option = SpeechEngineConfigOption(
       key: 'language',

@@ -267,7 +267,11 @@ class VadChunkedSenseVoiceStrategy implements RecognitionStrategy {
       } else if (message is _AsrResult) {
         if (!_output.isClosed) {
           _output.add(
-            RecognitionOutput(text: message.text, isFinal: message.isFinal),
+            RecognitionOutput(
+              text: message.text,
+              isFinal: message.isFinal,
+              detectedLanguage: message.lang,
+            ),
           );
         }
         // Every `_AsrResult` — partial or final — means the ASR isolate's
@@ -393,9 +397,14 @@ class _AsrSetLanguage {
 }
 
 class _AsrResult {
-  const _AsrResult(this.text, {required this.isFinal});
+  const _AsrResult(this.text, {required this.isFinal, this.lang});
   final String text;
   final bool isFinal;
+
+  /// SenseVoice's detected language for this segment, or `null` if it
+  /// reported none (an empty string from the native layer is normalized to
+  /// `null` at the point this is constructed — see `_asrIsolateEntry`).
+  final String? lang;
 }
 
 /// Sent from the main isolate to the VAD isolate every time the main
@@ -624,7 +633,11 @@ Future<void> _asrIsolateEntry(_AsrIsolateInit init) async {
       final result = recognizer.getResult(stream);
       stream.free();
       init.mainSendPort.send(
-        _AsrResult(result.text, isFinal: message.isFinal),
+        _AsrResult(
+          result.text,
+          isFinal: message.isFinal,
+          lang: result.lang.isEmpty ? null : result.lang,
+        ),
       );
     } else if (message is _AsrSetLanguage) {
       // A language toggle updates the recognizer's runtime config in place

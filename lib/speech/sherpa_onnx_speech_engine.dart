@@ -217,6 +217,7 @@ class SherpaOnnxSpeechEngine implements SpeechEngine {
         output.isFinal ? SpeechEventKind.finalText : SpeechEventKind.partial,
         output.text,
         sessionId,
+        detectedLanguage: output.detectedLanguage,
       ),
     );
   }

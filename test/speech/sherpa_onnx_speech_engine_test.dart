@@ -306,13 +306,20 @@ void main() {
       final subscription = engine.events.listen(received.add);
 
       final sessionId = await engine.start('en');
-      strategy.emit(const RecognitionOutput(text: '你好', isFinal: true));
+      strategy.emit(
+        const RecognitionOutput(
+          text: '你好',
+          isFinal: true,
+          detectedLanguage: 'zh',
+        ),
+      );
       await Future<void>.delayed(Duration.zero);
 
       expect(received, hasLength(1));
       expect(received.single.kind, SpeechEventKind.finalText);
       expect(received.single.text, '你好');
       expect(received.single.sessionId, sessionId);
+      expect(received.single.detectedLanguage, 'zh');
 
       // Invalidate the session (without disposing, which would close the
       // strategy's own output stream and make emitting a stray event moot).

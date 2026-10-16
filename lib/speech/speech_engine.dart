@@ -1,11 +1,16 @@
 enum SpeechEventKind { partial, finalText, error }
 
 class SpeechEvent {
-  const SpeechEvent(this.kind, this.text, this.sessionId);
+  const SpeechEvent(this.kind, this.text, this.sessionId, {this.detectedLanguage});
 
   final SpeechEventKind kind;
   final String text;
   final int sessionId;
+
+  /// The language detected for this segment (e.g. `'zh'`, `'en'`, `'yue'`),
+  /// or `null` if unknown/not reported. Only meaningful for `partial`/
+  /// `finalText` events.
+  final String? detectedLanguage;
 }
 
 /// Describes one discrete legal setting for an engine (e.g. SenseVoice's

@@ -63,6 +63,14 @@ void main() {
     const output = RecognitionOutput(text: '你好', isFinal: true);
     expect(output.text, '你好');
     expect(output.isFinal, isTrue);
+    expect(output.detectedLanguage, isNull);
+
+    const withLanguage = RecognitionOutput(
+      text: '你好',
+      isFinal: true,
+      detectedLanguage: 'zh',
+    );
+    expect(withLanguage.detectedLanguage, 'zh');
   });
 
   test(

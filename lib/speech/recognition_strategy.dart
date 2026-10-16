@@ -9,10 +9,19 @@ import 'speech_engine.dart';
 /// no mid-utterance partial. A future true-streaming strategy (e.g.
 /// Paraformer) may also emit `isFinal: false` segments as a partial grows.
 class RecognitionOutput {
-  const RecognitionOutput({required this.text, required this.isFinal});
+  const RecognitionOutput({
+    required this.text,
+    required this.isFinal,
+    this.detectedLanguage,
+  });
 
   final String text;
   final bool isFinal;
+
+  /// The language SenseVoice detected for this segment (e.g. `'zh'`, `'en'`,
+  /// `'yue'`), or `null` if the strategy doesn't report one. Used to route
+  /// per-source-language translation; has no effect on captioning itself.
+  final String? detectedLanguage;
 }
 
 /// How captured audio becomes text, independent of how audio is captured.
