@@ -42,37 +42,89 @@ void main() {
     await fixture.close(tester);
   });
 
-  testWidgets('shows five controls and renders changing partial captions', (
-    tester,
-  ) async {
-    final fixture = _Fixture();
-    await fixture.pump(tester);
+  testWidgets(
+    'portrait shows five controls in one left-to-right row and renders '
+    'changing partial captions',
+    (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.reset);
+      final fixture = _Fixture();
+      await fixture.pump(tester);
 
-    expect(find.bySemanticsLabel('增大字幕字号'), findsOneWidget);
-    expect(find.bySemanticsLabel('减小字幕字号'), findsOneWidget);
-    expect(find.bySemanticsLabel('识别语言'), findsOneWidget);
-    expect(find.text('自动/auto'), findsOneWidget);
-    expect(find.bySemanticsLabel('切换屏幕方向'), findsOneWidget);
-    expect(find.bySemanticsLabel('打开设置'), findsOneWidget);
-    expect(find.textContaining('暂停'), findsNothing);
+      expect(find.bySemanticsLabel('增大字幕字号'), findsOneWidget);
+      expect(find.bySemanticsLabel('减小字幕字号'), findsOneWidget);
+      expect(find.bySemanticsLabel('识别语言'), findsOneWidget);
+      expect(find.text('自动/auto'), findsOneWidget);
+      expect(find.bySemanticsLabel('切换屏幕方向'), findsOneWidget);
+      expect(find.bySemanticsLabel('打开设置'), findsOneWidget);
+      expect(find.textContaining('暂停'), findsNothing);
 
-    final session = fixture.engine.activeSessionId!;
-    fixture.engine.emit(SpeechEvent(SpeechEventKind.partial, '你', session));
-    await fixture.advance(tester);
-    fixture.engine.emit(SpeechEvent(SpeechEventKind.partial, '你好', session));
-    await fixture.advance(tester);
-    expect(find.text('你好'), findsOneWidget);
-    expect(find.text('你'), findsNothing);
+      final order = [
+        tester.getCenter(find.bySemanticsLabel('增大字幕字号')).dx,
+        tester.getCenter(find.bySemanticsLabel('减小字幕字号')).dx,
+        tester.getCenter(find.bySemanticsLabel('识别语言')).dx,
+        tester.getCenter(find.bySemanticsLabel('切换屏幕方向')).dx,
+        tester.getCenter(find.bySemanticsLabel('打开设置')).dx,
+      ];
+      expect(order, equals(List<double>.from(order)..sort()));
+      expect(
+        tester.getCenter(find.bySemanticsLabel('增大字幕字号')).dy,
+        tester.getCenter(find.bySemanticsLabel('打开设置')).dy,
+      );
 
-    await tester.tap(find.bySemanticsLabel('增大字幕字号'));
-    await fixture.advance(tester);
-    expect(fixture.store.value.fontSize, 64);
-    await tester.tap(find.bySemanticsLabel('减小字幕字号'));
-    await fixture.advance(tester);
-    expect(fixture.store.value.fontSize, 48);
-    expect(fixture.engine.stopCalls, 0);
-    await fixture.close(tester);
-  });
+      final session = fixture.engine.activeSessionId!;
+      fixture.engine.emit(SpeechEvent(SpeechEventKind.partial, '你', session));
+      await fixture.advance(tester);
+      fixture.engine.emit(
+        SpeechEvent(SpeechEventKind.partial, '你好', session),
+      );
+      await fixture.advance(tester);
+      expect(find.text('你好'), findsOneWidget);
+      expect(find.text('你'), findsNothing);
+
+      await tester.tap(find.bySemanticsLabel('增大字幕字号'));
+      await fixture.advance(tester);
+      expect(fixture.store.value.fontSize, 64);
+      await tester.tap(find.bySemanticsLabel('减小字幕字号'));
+      await fixture.advance(tester);
+      expect(fixture.store.value.fontSize, 48);
+      expect(fixture.engine.stopCalls, 0);
+      await fixture.close(tester);
+    },
+  );
+
+  testWidgets(
+    'landscape rotates the control bar into a side rail, '
+    'reversed top-to-bottom',
+    (tester) async {
+      tester.view.physicalSize = const Size(2400, 1080);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.reset);
+      final fixture = _Fixture();
+      await fixture.pump(tester);
+
+      expect(find.bySemanticsLabel('增大字幕字号'), findsOneWidget);
+      expect(find.bySemanticsLabel('减小字幕字号'), findsOneWidget);
+      expect(find.bySemanticsLabel('识别语言'), findsOneWidget);
+      expect(find.bySemanticsLabel('切换屏幕方向'), findsOneWidget);
+      expect(find.bySemanticsLabel('打开设置'), findsOneWidget);
+
+      final topToBottom = [
+        tester.getCenter(find.bySemanticsLabel('打开设置')).dy,
+        tester.getCenter(find.bySemanticsLabel('切换屏幕方向')).dy,
+        tester.getCenter(find.bySemanticsLabel('识别语言')).dy,
+        tester.getCenter(find.bySemanticsLabel('减小字幕字号')).dy,
+        tester.getCenter(find.bySemanticsLabel('增大字幕字号')).dy,
+      ];
+      expect(topToBottom, equals(List<double>.from(topToBottom)..sort()));
+      expect(
+        tester.getCenter(find.bySemanticsLabel('打开设置')).dx,
+        tester.getCenter(find.bySemanticsLabel('增大字幕字号')).dx,
+      );
+      await fixture.close(tester);
+    },
+  );
 
   testWidgets('rotation keeps one active speech session and wakelock', (
     tester,

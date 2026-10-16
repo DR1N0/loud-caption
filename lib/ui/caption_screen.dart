@@ -148,52 +148,61 @@ class _CaptionScreenState extends State<CaptionScreen> {
   }
 
   Widget _captionView() {
-    final controller = widget.controller;
-    return Column(
-      children: [
-        _status(controller),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Semantics(
-              liveRegion: true,
-              label: '实时字幕',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (final line in controller.committedLines)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        line,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: controller.settings.fontSize,
-                          height: 1.2,
-                        ),
-                      ),
-                    ),
-                  if (controller.partialText.isNotEmpty)
-                    Text(
-                      controller.partialText,
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    final body = Expanded(child: _captionBody(widget.controller));
+    if (isLandscape) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [body, _controls(vertical: true)],
+      );
+    }
+    return Column(children: [body, _controls(vertical: false)]);
+  }
+
+  Widget _captionBody(CaptionController controller) => Column(
+    children: [
+      _status(controller),
+      Expanded(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Semantics(
+            liveRegion: true,
+            label: '实时字幕',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (final line in controller.committedLines)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      line,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: const Color(0xFFCACDD3),
+                        color: Colors.white,
                         fontSize: controller.settings.fontSize,
                         height: 1.2,
                       ),
                     ),
-                ],
-              ),
+                  ),
+                if (controller.partialText.isNotEmpty)
+                  Text(
+                    controller.partialText,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: const Color(0xFFCACDD3),
+                      fontSize: controller.settings.fontSize,
+                      height: 1.2,
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
-        _controls(),
-      ],
-    );
-  }
+      ),
+    ],
+  );
 
   Widget _status(CaptionController controller) {
     final status = switch (controller.status) {
@@ -234,43 +243,50 @@ class _CaptionScreenState extends State<CaptionScreen> {
     );
   }
 
-  Widget _controls() => Padding(
-    padding: const EdgeInsets.all(12),
-    child: Wrap(
-      alignment: WrapAlignment.spaceEvenly,
-      runSpacing: 8,
-      spacing: 8,
-      children: [
-        _controlButton(
-          semanticLabel: '增大字幕字号',
-          icon: Icons.text_increase,
-          text: 'A+',
-          onPressed: () => _runAction(widget.coordinator.increaseFont),
-        ),
-        _controlButton(
-          semanticLabel: '减小字幕字号',
-          icon: Icons.text_decrease,
-          text: 'A-',
-          onPressed: () => _runAction(widget.coordinator.decreaseFont),
-        ),
-        _languageControl(),
-        _controlButton(
-          semanticLabel: '切换屏幕方向',
-          icon: Icons.screen_rotation,
-          text: '方向',
-          onPressed: widget.coordinator.orientationChangeInFlight
-              ? null
-              : () => _runAction(widget.coordinator.toggleOrientation),
-        ),
-        _controlButton(
-          semanticLabel: '打开设置',
-          icon: Icons.settings,
-          text: '设置',
-          onPressed: _openingSettings ? null : () => unawaited(_openSettings()),
-        ),
-      ],
-    ),
-  );
+  /// In the landscape side rail, the bar is rotated in place rather than
+  /// re-laid-out: the end nearest the edge that becomes the top (设置) ends
+  /// up on top, so the vertical order is the horizontal order reversed.
+  Widget _controls({required bool vertical}) {
+    final buttons = [
+      _controlButton(
+        semanticLabel: '增大字幕字号',
+        icon: Icons.text_increase,
+        text: 'A+',
+        onPressed: () => _runAction(widget.coordinator.increaseFont),
+      ),
+      _controlButton(
+        semanticLabel: '减小字幕字号',
+        icon: Icons.text_decrease,
+        text: 'A-',
+        onPressed: () => _runAction(widget.coordinator.decreaseFont),
+      ),
+      _languageControl(),
+      _controlButton(
+        semanticLabel: '切换屏幕方向',
+        icon: Icons.screen_rotation,
+        text: '方向',
+        onPressed: widget.coordinator.orientationChangeInFlight
+            ? null
+            : () => _runAction(widget.coordinator.toggleOrientation),
+      ),
+      _controlButton(
+        semanticLabel: '打开设置',
+        icon: Icons.settings,
+        text: '设置',
+        onPressed: _openingSettings ? null : () => unawaited(_openSettings()),
+      ),
+    ];
+    final ordered = vertical ? buttons.reversed.toList() : buttons;
+    final slots = [
+      for (final button in ordered) Expanded(child: Center(child: button)),
+    ];
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: vertical
+          ? SizedBox(width: 64, child: Column(children: slots))
+          : Row(children: slots),
+    );
+  }
 
   Widget _languageControl() => _controlButton(
     semanticLabel: '识别语言',
@@ -296,7 +312,7 @@ class _CaptionScreenState extends State<CaptionScreen> {
   );
 
   Widget _controlBody(IconData icon, String text) => SizedBox(
-    width: 72,
+    width: 64,
     height: 56,
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
