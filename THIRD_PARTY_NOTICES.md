@@ -48,9 +48,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-## Bundled speech models
+## Downloaded speech models
 
-Both model files are fetched by `scripts/fetch_models.py` from the `asr-models` release of `k2-fsa/sherpa-onnx` and bundled as Flutter assets. Their model-data licenses are independent of sherpa-onnx's own Apache-2.0 code license above.
+Both model files are downloaded on first launch (`lib/speech/sense_voice_model_download.dart`) from the `asr-models` release of `k2-fsa/sherpa-onnx`, verified against a pinned SHA-256, and stored in app-private storage — they are not bundled in the APK. Their model-data licenses are independent of sherpa-onnx's own Apache-2.0 code license above.
 
 | Component | Exact file | Source | License |
 | --- | --- | --- | --- |

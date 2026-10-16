@@ -4,13 +4,8 @@
 # targets below; override JAVA17_HOME if Zulu isn't installed at this path.
 JAVA17_HOME ?= /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home
 
-.PHONY: models pub-get analyze test apk-debug apk-release apk \
+.PHONY: pub-get analyze test apk-debug apk-release apk \
         install-debug install-release clean check
-
-## Download and checksum-verify the SenseVoice + Silero VAD model files.
-models:
-	python3 scripts/fetch_models.py
-	python3 -m unittest discover -s test -p 'model_sources_test.py'
 
 ## Fetch Dart/Flutter package dependencies.
 pub-get:
@@ -24,7 +19,9 @@ analyze:
 test:
 	flutter test
 
-## Build the debug APK (includes the debug-only INTERNET permission).
+## Build the debug APK (signed with the same committed key as release — see
+## android/app/build.gradle.kts — so switching between the two never needs an
+## uninstall first).
 apk-debug:
 	cd android && env JAVA_HOME=$(JAVA17_HOME) PATH="$(JAVA17_HOME)/bin:$$PATH" \
 		./gradlew --no-daemon -Dorg.gradle.java.home=$(JAVA17_HOME) :app:assembleDebug
@@ -54,5 +51,5 @@ install-release: apk-release
 clean:
 	flutter clean
 
-## Full pre-release gate: models, deps, static analysis, and the test suite.
-check: models pub-get analyze test
+## Full pre-release gate: deps, static analysis, and the test suite.
+check: pub-get analyze test

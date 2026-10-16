@@ -8,10 +8,12 @@ import 'lifecycle/screen_awake.dart';
 import 'permissions/microphone_access.dart';
 import 'settings/app_settings.dart';
 import 'speech/mic_capture.dart';
+import 'speech/sense_voice_model_download.dart';
 import 'speech/sherpa_onnx_speech_engine.dart';
 import 'speech/speech_engine.dart';
 import 'speech/vad_chunked_sense_voice_strategy.dart';
 import 'ui/caption_screen.dart';
+import 'ui/model_download_screen.dart';
 import 'ui/orientation_manager.dart';
 
 void main() {
@@ -27,6 +29,8 @@ class CaptionApp extends StatefulWidget {
     this.microphoneAccess,
     this.screenAwake,
     this.orientationManager,
+    this.isModelReady,
+    this.downloadModel,
   });
 
   final SpeechEngine? engine;
@@ -34,6 +38,14 @@ class CaptionApp extends StatefulWidget {
   final MicrophoneAccess? microphoneAccess;
   final ScreenAwake? screenAwake;
   final OrientationManager? orientationManager;
+
+  /// Defaults to [isSenseVoiceModelReady]; overridable so tests that aren't
+  /// exercising the download flow itself can skip straight past it.
+  final Future<bool> Function()? isModelReady;
+
+  /// Defaults to [downloadSenseVoiceModel]; forwarded to [ModelDownloadScreen]
+  /// unchanged.
+  final Stream<ModelDownloadEvent> Function()? downloadModel;
 
   @override
   State<CaptionApp> createState() => _CaptionAppState();
@@ -44,6 +56,11 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
   late final CaptionController _controller;
   late final CaptionLifecycleCoordinator _coordinator;
   late final OrientationManager _orientationManager;
+
+  /// `null` while the initial (cheap, existence-only) check is in flight,
+  /// `false` while `ModelDownloadScreen` is downloading, `true` once the
+  /// model is confirmed present and `_initialize()` has been kicked off.
+  bool? _modelReady;
   bool _ready = false;
   String? _initializationError;
 
@@ -70,6 +87,22 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
       orientationManager: _orientationManager,
     );
     WidgetsBinding.instance.addObserver(this);
+    unawaited(_checkModelReady());
+  }
+
+  /// Existence-only check (no re-hashing — see `isSenseVoiceModelReady`'s
+  /// doc comment) so a normal launch after the model is already downloaded
+  /// never shows `ModelDownloadScreen`, even briefly.
+  Future<void> _checkModelReady() async {
+    final ready = await (widget.isModelReady ?? isSenseVoiceModelReady)();
+    if (!mounted) return;
+    setState(() => _modelReady = ready);
+    if (ready) unawaited(_initialize());
+  }
+
+  void _onModelDownloaded() {
+    if (!mounted) return;
+    setState(() => _modelReady = true);
     unawaited(_initialize());
   }
 
@@ -104,14 +137,25 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final Widget home;
+    if (_modelReady == null) {
+      home = const Scaffold(body: Center(child: CircularProgressIndicator()));
+    } else if (_modelReady == false) {
+      home = ModelDownloadScreen(
+        onReady: _onModelDownloaded,
+        downloadModel: widget.downloadModel,
+      );
+    } else if (!_ready) {
+      home = const Scaffold(body: Center(child: CircularProgressIndicator()));
+    } else if (_initializationError != null) {
+      home = Scaffold(body: Center(child: Text(_initializationError!)));
+    } else {
+      home = CaptionScreen(controller: _controller, coordinator: _coordinator);
+    }
     return MaterialApp(
       title: 'Loud Caption',
       theme: ThemeData.dark(useMaterial3: true),
-      home: !_ready
-          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
-          : _initializationError != null
-          ? Scaffold(body: Center(child: Text(_initializationError!)))
-          : CaptionScreen(controller: _controller, coordinator: _coordinator),
+      home: home,
     );
   }
 }

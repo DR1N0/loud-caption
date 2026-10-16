@@ -23,6 +23,7 @@ void main() {
           microphoneAccess: microphone,
           screenAwake: awake,
           orientationManager: OrientationManager(setOrientations: (_) async {}),
+          isModelReady: () async => true,
         ),
       );
       await tester.pump();
@@ -65,6 +66,7 @@ void main() {
         microphoneAccess: microphone,
         screenAwake: awake,
         orientationManager: OrientationManager(setOrientations: (_) async {}),
+        isModelReady: () async => true,
       ),
     );
     await tester.pump();

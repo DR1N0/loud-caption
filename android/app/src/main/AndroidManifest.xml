@@ -1,5 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Needed to download the pinned, checksum-verified SenseVoice/Silero
+         VAD/Hy-MT2 model files on first use (see
+         lib/speech/sense_voice_model_download.dart). The app never uploads
+         anything — recognized speech and captions never leave the device. -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:label="@string/app_name"

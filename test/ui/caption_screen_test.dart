@@ -193,6 +193,7 @@ class _Fixture {
         microphoneAccess: microphone,
         screenAwake: awake,
         orientationManager: orientationManager,
+        isModelReady: () async => true,
       ),
     );
     await advance(tester);

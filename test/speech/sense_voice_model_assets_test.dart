@@ -1,8 +1,5 @@
-import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:loud_caption/speech/sense_voice_model_assets.dart';
 // path_provider_platform_interface is a transitive dependency of
@@ -12,9 +9,6 @@ import 'package:loud_caption/speech/sense_voice_model_assets.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-/// Fake platform implementation that answers `getApplicationSupportPath`
-/// with a test-controlled temp directory, so [prepareSenseVoiceModelAssets]
-/// never touches a real device path during tests.
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this._supportPath);
 
@@ -25,8 +19,6 @@ class _FakePathProviderPlatform extends PathProviderPlatform {
 }
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   late Directory tempDir;
   late PathProviderPlatform originalPlatform;
 
@@ -40,100 +32,60 @@ void main() {
 
   tearDown(() async {
     PathProviderPlatform.instance = originalPlatform;
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMessageHandler('flutter/assets', null);
     if (await tempDir.exists()) {
       await tempDir.delete(recursive: true);
     }
   });
 
-  /// Installs a fake `AssetBundle` by intercepting the `flutter/assets`
-  /// platform channel that `rootBundle.load` sends to under the hood.
-  void mockAssets(Map<String, List<int>> assets) {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMessageHandler('flutter/assets', (ByteData? message) async {
-          final key = utf8.decode(message!.buffer.asUint8List());
-          final bytes = assets[key];
-          if (bytes == null) return null;
-          return ByteData.sublistView(Uint8List.fromList(bytes));
-        });
-  }
-
-  const senseVoiceModelKey = 'assets/models/sense-voice/model.int8.onnx';
-  const senseVoiceTokensKey = 'assets/models/sense-voice/tokens.txt';
-  const sileroVadModelKey = 'assets/models/silero-vad/silero_vad.onnx';
-
-  test('copies all three model assets into app-private storage', () async {
-    mockAssets({
-      senseVoiceModelKey: List.filled(10, 1),
-      senseVoiceTokensKey: List.filled(5, 2),
-      sileroVadModelKey: List.filled(7, 3),
-    });
-
-    final paths = await prepareSenseVoiceModelAssets();
-
-    expect(paths.senseVoiceModel, startsWith(tempDir.path));
-    expect(
-      await File(paths.senseVoiceModel).readAsBytes(),
-      List.filled(10, 1),
-    );
-    expect(
-      await File(paths.senseVoiceTokens).readAsBytes(),
-      List.filled(5, 2),
-    );
-    expect(
-      await File(paths.sileroVadModel).readAsBytes(),
-      List.filled(7, 3),
-    );
-  });
-
   test(
-    'skips re-copy when destination length already matches the asset',
+    'senseVoiceModelDestinationPaths resolves fixed paths under app support',
     () async {
-      mockAssets({
-        senseVoiceModelKey: List.filled(10, 1),
-        senseVoiceTokensKey: List.filled(5, 2),
-        sileroVadModelKey: List.filled(7, 3),
-      });
+      final paths = await senseVoiceModelDestinationPaths();
 
-      final first = await prepareSenseVoiceModelAssets();
-
-      // Overwrite the copied file's *content* (keeping its length the same)
-      // to prove a second call with a same-length asset does not rewrite it.
-      await File(first.senseVoiceModel).writeAsBytes(List.filled(10, 9));
-
-      final second = await prepareSenseVoiceModelAssets();
-
-      expect(second.senseVoiceModel, first.senseVoiceModel);
       expect(
-        await File(second.senseVoiceModel).readAsBytes(),
-        List.filled(10, 9),
-        reason: 'destination content should be untouched when lengths match',
+        paths.senseVoiceModel,
+        '${tempDir.path}/sense-voice/model.int8.onnx',
+      );
+      expect(paths.senseVoiceTokens, '${tempDir.path}/sense-voice/tokens.txt');
+      expect(
+        paths.sileroVadModel,
+        '${tempDir.path}/silero-vad/silero_vad.onnx',
       );
     },
   );
 
   test(
-    're-copies when the bundled asset length changes (model version bump)',
+    'prepareSenseVoiceModelAssets returns the paths when all three files exist',
     () async {
-      mockAssets({
-        senseVoiceModelKey: List.filled(10, 1),
-        senseVoiceTokensKey: List.filled(5, 2),
-        sileroVadModelKey: List.filled(7, 3),
-      });
-      await prepareSenseVoiceModelAssets();
+      final paths = await senseVoiceModelDestinationPaths();
+      for (final path in [
+        paths.senseVoiceModel,
+        paths.senseVoiceTokens,
+        paths.sileroVadModel,
+      ]) {
+        await File(path).create(recursive: true);
+      }
 
-      mockAssets({
-        senseVoiceModelKey: List.filled(20, 4), // different length
-        senseVoiceTokensKey: List.filled(5, 2),
-        sileroVadModelKey: List.filled(7, 3),
-      });
+      final resolved = await prepareSenseVoiceModelAssets();
 
-      final updated = await prepareSenseVoiceModelAssets();
+      expect(resolved.senseVoiceModel, paths.senseVoiceModel);
+      expect(resolved.senseVoiceTokens, paths.senseVoiceTokens);
+      expect(resolved.sileroVadModel, paths.sileroVadModel);
+    },
+  );
 
-      expect(
-        await File(updated.senseVoiceModel).readAsBytes(),
-        List.filled(20, 4),
+  test(
+    'prepareSenseVoiceModelAssets throws StateError when a file is missing',
+    () async {
+      final paths = await senseVoiceModelDestinationPaths();
+      // Only create two of the three — the model download gate is supposed
+      // to guarantee all three exist before this is ever called.
+      await File(paths.senseVoiceModel).create(recursive: true);
+      await File(paths.senseVoiceTokens).create(recursive: true);
+
+      await expectLater(
+        prepareSenseVoiceModelAssets,
+        throwsA(isA<StateError>()),
       );
     },
   );
