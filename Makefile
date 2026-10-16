@@ -29,10 +29,16 @@ apk-debug:
 	cd android && env JAVA_HOME=$(JAVA17_HOME) PATH="$(JAVA17_HOME)/bin:$$PATH" \
 		./gradlew --no-daemon -Dorg.gradle.java.home=$(JAVA17_HOME) :app:assembleDebug
 
-## Build the release APK (what gets attached to a GitHub Release).
+## Build the release APK (arm64-v8a only; what gets attached to a GitHub
+## Release). Plain `ndk.abiFilters` doesn't work here: Flutter's Gradle
+## plugin (3.35+) pre-populates abiFilters with every supported ABI before
+## build.gradle.kts runs, so --target-platform/--split-per-abi is the only
+## reliable way to drop the unused armeabi-v7a/x86_64 native libs.
 apk-release:
-	cd android && env JAVA_HOME=$(JAVA17_HOME) PATH="$(JAVA17_HOME)/bin:$$PATH" \
-		./gradlew --no-daemon -Dorg.gradle.java.home=$(JAVA17_HOME) :app:assembleRelease
+	env JAVA_HOME=$(JAVA17_HOME) PATH="$(JAVA17_HOME)/bin:$$PATH" \
+		flutter build apk --release --target-platform android-arm64 --split-per-abi
+	cp build/app/outputs/apk/release/app-arm64-v8a-release.apk \
+		build/app/outputs/apk/release/app-release.apk
 
 ## Alias for apk-release.
 apk: apk-release
