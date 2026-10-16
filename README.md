@@ -9,9 +9,9 @@ This is a personal, side-loaded project distributed through [GitHub Releases](ht
 ## Features
 
 - Full-screen, high-contrast live captions with adjustable font size
-- Offline speech recognition for Chinese and English (switch with one tap)
-- Orientation lock, and a Settings screen to enable/disable installed languages
-- No audio or caption history is stored; only your preferences (language, font size, orientation) persist
+- Offline Chinese/English speech recognition with automatic language detection — no manual switching needed
+- Orientation lock; the control bar adapts between a single row (portrait) and a side rail (landscape) so captions keep most of the screen
+- No audio or caption history is stored; only your font size and orientation preferences persist
 - Recognition keeps running through rotation, font changes, and the in-app Settings screen; it only stops when the app is truly backgrounded, the screen locks, or you leave for system Settings
 
 See [`docs/model-sources.md`](docs/model-sources.md) and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for what's bundled and under what license, and [`docs/superpowers/specs/`](docs/superpowers/specs/) for the full design history.
@@ -63,4 +63,4 @@ The tradeoff: because the key is public, anyone with this repo can produce an AP
 
 ### Status
 
-This app migrated its speech engine from Vosk to sherpa-onnx (SenseVoice ASR + Silero VAD). The device-verification claims below predate that migration and have **not yet been re-verified** on the new engine — re-running the device smoke test against sherpa-onnx is still outstanding. Prior to the migration, one phone had run the Vosk-based release build with stable Chinese/English real-time captions, continuous capture across rotation and in-app Settings, a clean language-switch model swap, and a clean stop on backgrounding — developer-confirmed, partly corroborated by device logs. Foreground-resume behavior, caption accuracy, and device-specific battery/thermal/accessibility behavior have not been independently verified on either engine. Online translation, downloadable language packs, cloud sync, caption history, and iOS are intentionally out of scope.
+This app migrated its speech engine from Vosk to sherpa-onnx (SenseVoice ASR + Silero VAD). Further testing showed SenseVoice's automatic language detection ("auto" mode) is accurate enough on its own — no observed Chinese-misheard-as-English cases — that the manual language-switching UI (Settings screen language list, caption-screen language toggle) was removed entirely; it remains in git history if a future feature wants it back. One phone has run the sherpa-onnx engine in auto mode with stable, accurate real-time Chinese/English captions. This specific build (including the simplified control bar) has been verified with the full automated test suite and on an Android emulator, but a dedicated real-device smoke test of this exact build is still outstanding. Foreground-resume behavior, caption accuracy across devices, and device-specific battery/thermal/accessibility behavior have not been independently verified. Online translation, downloadable language packs, cloud sync, caption history, and iOS are intentionally out of scope.
