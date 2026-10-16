@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../settings/app_settings.dart';
 import '../speech/speech_engine.dart';
+import '../translation/translation_engine.dart';
 
 /// The recognition lifecycle currently visible to the caption UI.
 enum CaptionStatus { idle, starting, listening, switching, retrying, failed }
@@ -18,10 +19,12 @@ class CaptionController extends ChangeNotifier {
   CaptionController({
     required SpeechEngine engine,
     required SettingsStore settingsStore,
+    TranslationEngine? translationEngine,
     RetryDelay? retryDelay,
     bool Function()? mayStartCapture,
   }) : _engine = engine,
        _settingsStore = settingsStore,
+       _translationEngine = translationEngine,
        _retryDelay = retryDelay ?? _defaultRetryDelay,
        _mayStartCapture = mayStartCapture ?? _alwaysAllowCapture;
 
@@ -33,6 +36,7 @@ class CaptionController extends ChangeNotifier {
 
   final SpeechEngine _engine;
   final SettingsStore _settingsStore;
+  final TranslationEngine? _translationEngine;
   final RetryDelay _retryDelay;
   final bool Function() _mayStartCapture;
   final List<String> _committedLines = [];
@@ -53,6 +57,7 @@ class CaptionController extends ChangeNotifier {
   CaptionStatus _status = CaptionStatus.idle;
 
   CaptionSettings get settings => _settings;
+  TranslationEngine? get translationEngine => _translationEngine;
   List<String> get committedLines => List<String>.unmodifiable(_committedLines);
   String get partialText => _partialText;
   String get displayText => [
@@ -171,6 +176,30 @@ class CaptionController extends ChangeNotifier {
     await initialize();
     if (_disposed) return;
     await _saveAndApply(_settings.withLandscape(!_settings.landscape));
+  }
+
+  Future<void> cycleMode() async {
+    await initialize();
+    if (_disposed) return;
+    await _saveAndApply(_settings.withCaptionMode(_settings.captionMode.next));
+  }
+
+  Future<void> toggleTheme() async {
+    await initialize();
+    if (_disposed) return;
+    await _saveAndApply(_settings.withThemeMode(_settings.themeMode.other));
+  }
+
+  Future<void> setTranslateAllTarget(String language) async {
+    await initialize();
+    if (_disposed) return;
+    await _saveAndApply(_settings.withTranslateAllTarget(language));
+  }
+
+  Future<void> setRoutingTarget(String sourceLanguage, String target) async {
+    await initialize();
+    if (_disposed) return;
+    await _saveAndApply(_settings.withRoutingTarget(sourceLanguage, target));
   }
 
   Future<void> _saveAndApply(CaptionSettings next) async {

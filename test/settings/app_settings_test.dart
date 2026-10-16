@@ -23,9 +23,56 @@ void main() {
     expect(settings.withLandscape(true).landscape, isTrue);
   });
 
-  test('save and reload retain font size and orientation', () async {
+  test('fresh settings default to captions mode and a self-routing table', () {
+    final settings = CaptionSettings();
+
+    expect(settings.captionMode, CaptionMode.captions);
+    expect(settings.translateAllTarget, 'en');
+    expect(settings.themeMode, AppThemeMode.dark);
+    for (final language in translationLanguages) {
+      expect(settings.routingTargetFor(language), language);
+    }
+  });
+
+  test('mode cycles captions -> translateAll -> translateCustom -> captions', () {
+    expect(CaptionMode.captions.next, CaptionMode.translateAll);
+    expect(CaptionMode.translateAll.next, CaptionMode.translateCustom);
+    expect(CaptionMode.translateCustom.next, CaptionMode.captions);
+  });
+
+  test('withRoutingTarget only changes the given source language', () {
+    final settings = CaptionSettings().withRoutingTarget('zh', 'en');
+
+    expect(settings.routingTargetFor('zh'), 'en');
+    expect(settings.routingTargetFor('en'), 'en');
+    expect(settings.routingTargetFor('ja'), 'ja');
+    expect(settings.routingTargetFor('ko'), 'ko');
+  });
+
+  test('an unrecognized language falls back to self-routing', () {
+    final settings = CaptionSettings(routing: const {'zh': 'not-a-language'});
+
+    expect(settings.routingTargetFor('zh'), 'zh');
+  });
+
+  test('toggling theme mode flips dark and light', () {
+    final settings = CaptionSettings();
+
+    expect(settings.withThemeMode(AppThemeMode.light).themeMode, AppThemeMode.light);
+    expect(AppThemeMode.dark.other, AppThemeMode.light);
+    expect(AppThemeMode.light.other, AppThemeMode.dark);
+  });
+
+  test('save and reload retain every field', () async {
     final store = SharedPreferencesSettingsStore();
-    final settings = CaptionSettings(fontSize: 64, landscape: true);
+    final settings = CaptionSettings(
+      fontSize: 64,
+      landscape: true,
+      captionMode: CaptionMode.translateCustom,
+      translateAllTarget: 'ja',
+      routing: const {'zh': 'en', 'en': 'zh'},
+      themeMode: AppThemeMode.light,
+    );
 
     await store.save(settings);
     final reloaded = await SharedPreferencesSettingsStore().load();
@@ -38,6 +85,18 @@ void main() {
 
     expect(settings.fontSize, 48.0);
     expect(settings.landscape, isFalse);
+    expect(settings.captionMode, CaptionMode.captions);
+    expect(settings.translateAllTarget, 'en');
+    expect(settings.themeMode, AppThemeMode.dark);
+  });
+
+  test('an unrecognized stored mode falls back to captions', () async {
+    SharedPreferences.setMockInitialValues({
+      SharedPreferencesSettingsStore.captionModeKey: 'not-a-mode',
+    });
+    final settings = await SharedPreferencesSettingsStore().load();
+
+    expect(settings.captionMode, CaptionMode.captions);
   });
 
   test('a false write restores the prior coherent settings', () async {

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:loud_caption/captions/caption_controller.dart';
 import 'package:loud_caption/settings/app_settings.dart';
 import 'package:loud_caption/speech/speech_engine.dart';
+import 'package:loud_caption/translation/noop_translation_engine.dart';
 
 void main() {
   group('CaptionController', () {
@@ -310,6 +311,53 @@ void main() {
       expect(captions.settings.fontSize, 64.0);
       expect(captions.settings.landscape, isTrue);
       expect(store.value, captions.settings);
+    });
+
+    test('cycleMode advances captions -> translateAll -> translateCustom', () async {
+      await captions.initialize();
+
+      await captions.cycleMode();
+      expect(captions.settings.captionMode, CaptionMode.translateAll);
+      await captions.cycleMode();
+      expect(captions.settings.captionMode, CaptionMode.translateCustom);
+      await captions.cycleMode();
+      expect(captions.settings.captionMode, CaptionMode.captions);
+      expect(store.value, captions.settings);
+    });
+
+    test('toggleTheme flips between dark and light and persists', () async {
+      await captions.initialize();
+      expect(captions.settings.themeMode, AppThemeMode.dark);
+
+      await captions.toggleTheme();
+      expect(captions.settings.themeMode, AppThemeMode.light);
+      await captions.toggleTheme();
+      expect(captions.settings.themeMode, AppThemeMode.dark);
+      expect(store.value, captions.settings);
+    });
+
+    test('setTranslateAllTarget and setRoutingTarget persist', () async {
+      await captions.initialize();
+
+      await captions.setTranslateAllTarget('ja');
+      await captions.setRoutingTarget('zh', 'en');
+
+      expect(captions.settings.translateAllTarget, 'ja');
+      expect(captions.settings.routingTargetFor('zh'), 'en');
+      expect(captions.settings.routingTargetFor('en'), 'en');
+      expect(store.value, captions.settings);
+    });
+
+    test('a translation engine is exposed but not otherwise used yet', () {
+      final translationEngine = NoopTranslationEngine();
+      final translatingCaptions = CaptionController(
+        engine: FakeSpeechEngine(),
+        settingsStore: MemorySettingsStore(),
+        translationEngine: translationEngine,
+      );
+      addTearDown(translatingCaptions.dispose);
+
+      expect(translatingCaptions.translationEngine, same(translationEngine));
     });
   });
 }

@@ -12,9 +12,13 @@ import 'speech/sense_voice_model_download.dart';
 import 'speech/sherpa_onnx_speech_engine.dart';
 import 'speech/speech_engine.dart';
 import 'speech/vad_chunked_sense_voice_strategy.dart';
+import 'translation/noop_translation_engine.dart';
+import 'translation/translation_engine.dart';
 import 'ui/caption_screen.dart';
+import 'ui/caption_theme.dart';
 import 'ui/model_download_screen.dart';
 import 'ui/orientation_manager.dart';
+import 'ui/settings_screen.dart';
 
 void main() {
   runApp(const CaptionApp());
@@ -26,6 +30,7 @@ class CaptionApp extends StatefulWidget {
     super.key,
     this.engine,
     this.settingsStore,
+    this.translationEngine,
     this.microphoneAccess,
     this.screenAwake,
     this.orientationManager,
@@ -35,6 +40,7 @@ class CaptionApp extends StatefulWidget {
 
   final SpeechEngine? engine;
   final SettingsStore? settingsStore;
+  final TranslationEngine? translationEngine;
   final MicrophoneAccess? microphoneAccess;
   final ScreenAwake? screenAwake;
   final OrientationManager? orientationManager;
@@ -52,10 +58,12 @@ class CaptionApp extends StatefulWidget {
 }
 
 class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
+  final _navigatorKey = GlobalKey<NavigatorState>();
   late final SpeechEngine _engine;
   late final CaptionController _controller;
   late final CaptionLifecycleCoordinator _coordinator;
   late final OrientationManager _orientationManager;
+  late AppThemeMode _themeMode;
 
   /// `null` while the initial (cheap, existence-only) check is in flight,
   /// `false` while `ModelDownloadScreen` is downloading, `true` once the
@@ -76,8 +84,11 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
     _controller = CaptionController(
       engine: _engine,
       settingsStore: widget.settingsStore ?? SharedPreferencesSettingsStore(),
+      translationEngine: widget.translationEngine ?? NoopTranslationEngine(),
       mayStartCapture: () => _coordinator.mayStartCapture,
     );
+    _themeMode = _controller.settings.themeMode;
+    _controller.addListener(_onThemeMaybeChanged);
     _coordinator = CaptionLifecycleCoordinator(
       controller: _controller,
       engine: _engine,
@@ -88,6 +99,23 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
     );
     WidgetsBinding.instance.addObserver(this);
     unawaited(_checkModelReady());
+  }
+
+  /// Only rebuilds `MaterialApp`'s theme on an actual day/night change, not
+  /// on every partial-caption notification `CaptionController` emits.
+  void _onThemeMaybeChanged() {
+    if (!mounted || _controller.settings.themeMode == _themeMode) return;
+    setState(() => _themeMode = _controller.settings.themeMode);
+  }
+
+  void _openSettings() {
+    unawaited(
+      _navigatorKey.currentState!.push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => SettingsScreen(controller: _controller),
+        ),
+      ),
+    );
   }
 
   /// Existence-only check (no re-hashing — see `isSenseVoiceModelReady`'s
@@ -127,6 +155,7 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _controller.removeListener(_onThemeMaybeChanged);
     unawaited(
       _coordinator.shutdown().catchError((Object error) {
         debugPrint('Could not safely dispose caption recognition: $error');
@@ -150,11 +179,24 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
     } else if (_initializationError != null) {
       home = Scaffold(body: Center(child: Text(_initializationError!)));
     } else {
-      home = CaptionScreen(controller: _controller, coordinator: _coordinator);
+      home = CaptionScreen(
+        controller: _controller,
+        coordinator: _coordinator,
+        onOpenSettings: _openSettings,
+      );
     }
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: 'Loud Caption',
-      theme: ThemeData.dark(useMaterial3: true),
+      theme: ThemeData.light(
+        useMaterial3: true,
+      ).copyWith(extensions: const [CaptionColors.light]),
+      darkTheme: ThemeData.dark(
+        useMaterial3: true,
+      ).copyWith(extensions: const [CaptionColors.dark]),
+      themeMode: _themeMode == AppThemeMode.light
+          ? ThemeMode.light
+          : ThemeMode.dark,
       home: home,
     );
   }

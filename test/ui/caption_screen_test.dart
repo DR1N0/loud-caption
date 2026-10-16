@@ -43,7 +43,7 @@ void main() {
   });
 
   testWidgets(
-    'portrait shows three controls in one left-to-right row and renders '
+    'portrait shows six controls in one left-to-right row and renders '
     'changing partial captions',
     (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
@@ -55,19 +55,23 @@ void main() {
       expect(find.bySemanticsLabel('增大字幕字号'), findsOneWidget);
       expect(find.bySemanticsLabel('减小字幕字号'), findsOneWidget);
       expect(find.bySemanticsLabel('切换屏幕方向'), findsOneWidget);
-      expect(find.bySemanticsLabel('识别语言'), findsNothing);
-      expect(find.bySemanticsLabel('打开设置'), findsNothing);
+      expect(find.bySemanticsLabel('切换模式'), findsOneWidget);
+      expect(find.bySemanticsLabel('打开设置'), findsOneWidget);
+      expect(find.bySemanticsLabel('切换昼夜模式'), findsOneWidget);
       expect(find.textContaining('暂停'), findsNothing);
 
       final order = [
         tester.getCenter(find.bySemanticsLabel('增大字幕字号')).dx,
         tester.getCenter(find.bySemanticsLabel('减小字幕字号')).dx,
         tester.getCenter(find.bySemanticsLabel('切换屏幕方向')).dx,
+        tester.getCenter(find.bySemanticsLabel('切换模式')).dx,
+        tester.getCenter(find.bySemanticsLabel('打开设置')).dx,
+        tester.getCenter(find.bySemanticsLabel('切换昼夜模式')).dx,
       ];
       expect(order, equals(List<double>.from(order)..sort()));
       expect(
         tester.getCenter(find.bySemanticsLabel('增大字幕字号')).dy,
-        tester.getCenter(find.bySemanticsLabel('切换屏幕方向')).dy,
+        tester.getCenter(find.bySemanticsLabel('切换昼夜模式')).dy,
       );
 
       final session = fixture.engine.activeSessionId!;
@@ -104,17 +108,21 @@ void main() {
       expect(find.bySemanticsLabel('增大字幕字号'), findsOneWidget);
       expect(find.bySemanticsLabel('减小字幕字号'), findsOneWidget);
       expect(find.bySemanticsLabel('切换屏幕方向'), findsOneWidget);
-      expect(find.bySemanticsLabel('识别语言'), findsNothing);
-      expect(find.bySemanticsLabel('打开设置'), findsNothing);
+      expect(find.bySemanticsLabel('切换模式'), findsOneWidget);
+      expect(find.bySemanticsLabel('打开设置'), findsOneWidget);
+      expect(find.bySemanticsLabel('切换昼夜模式'), findsOneWidget);
 
       final topToBottom = [
+        tester.getCenter(find.bySemanticsLabel('切换昼夜模式')).dy,
+        tester.getCenter(find.bySemanticsLabel('打开设置')).dy,
+        tester.getCenter(find.bySemanticsLabel('切换模式')).dy,
         tester.getCenter(find.bySemanticsLabel('切换屏幕方向')).dy,
         tester.getCenter(find.bySemanticsLabel('减小字幕字号')).dy,
         tester.getCenter(find.bySemanticsLabel('增大字幕字号')).dy,
       ];
       expect(topToBottom, equals(List<double>.from(topToBottom)..sort()));
       expect(
-        tester.getCenter(find.bySemanticsLabel('切换屏幕方向')).dx,
+        tester.getCenter(find.bySemanticsLabel('切换昼夜模式')).dx,
         tester.getCenter(find.bySemanticsLabel('增大字幕字号')).dx,
       );
       await fixture.close(tester);

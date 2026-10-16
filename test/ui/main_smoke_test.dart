@@ -41,8 +41,9 @@ void main() {
       expect(find.text('A+'), findsOneWidget);
       expect(find.text('A-'), findsOneWidget);
       expect(find.bySemanticsLabel('切换屏幕方向'), findsOneWidget);
-      expect(find.bySemanticsLabel('识别语言'), findsNothing);
-      expect(find.bySemanticsLabel('打开设置'), findsNothing);
+      expect(find.bySemanticsLabel('切换模式'), findsOneWidget);
+      expect(find.bySemanticsLabel('打开设置'), findsOneWidget);
+      expect(find.bySemanticsLabel('切换昼夜模式'), findsOneWidget);
       expect(awake.enableCalls, 1);
       expect(find.textContaining('暂停'), findsNothing);
       expect(find.textContaining('恢复'), findsNothing);

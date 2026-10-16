@@ -155,6 +155,10 @@ class CaptionLifecycleCoordinator extends ChangeNotifier {
 
   Future<void> decreaseFont() => _writeSetting(_controller.decreaseFont);
 
+  Future<void> cycleMode() => _writeSetting(_controller.cycleMode);
+
+  Future<void> toggleTheme() => _writeSetting(_controller.toggleTheme);
+
   Future<void> _writeSetting(Future<void> Function() write) async {
     if (_disposed) return;
     await _lock.synchronized(write);

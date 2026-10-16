@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import '../captions/caption_controller.dart';
 import '../lifecycle/caption_lifecycle_coordinator.dart';
 import '../permissions/microphone_access.dart';
+import '../settings/app_settings.dart';
+import 'caption_theme.dart';
 
 /// Full-screen captions; recording policy belongs to the app coordinator.
 class CaptionScreen extends StatefulWidget {
@@ -13,10 +15,12 @@ class CaptionScreen extends StatefulWidget {
     super.key,
     required this.controller,
     required this.coordinator,
+    required this.onOpenSettings,
   });
 
   final CaptionController controller;
   final CaptionLifecycleCoordinator coordinator;
+  final VoidCallback onOpenSettings;
 
   @override
   State<CaptionScreen> createState() => _CaptionScreenState();
@@ -70,9 +74,12 @@ class _CaptionScreenState extends State<CaptionScreen> {
     super.dispose();
   }
 
+  CaptionColors _colors(BuildContext context) =>
+      Theme.of(context).extension<CaptionColors>()!;
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF101114),
+    backgroundColor: _colors(context).background,
     body: SafeArea(
       child: widget.coordinator.access == MicAccessState.granted
           ? _captionView()
@@ -81,6 +88,7 @@ class _CaptionScreenState extends State<CaptionScreen> {
   );
 
   Widget _permissionView() {
+    final colors = _colors(context);
     final permanentlyDenied =
         widget.coordinator.access == MicAccessState.permanentlyDenied;
     return Center(
@@ -89,12 +97,12 @@ class _CaptionScreenState extends State<CaptionScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.mic_none, color: Colors.white, size: 64),
+            Icon(Icons.mic_none, color: colors.primaryText, size: 64),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               '开启麦克风权限后即可显示实时字幕',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontSize: 24),
+              style: TextStyle(color: colors.primaryText, fontSize: 24),
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -138,51 +146,55 @@ class _CaptionScreenState extends State<CaptionScreen> {
     return Column(children: [body, _controls(vertical: false)]);
   }
 
-  Widget _captionBody(CaptionController controller) => Column(
-    children: [
-      _status(controller),
-      Expanded(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Semantics(
-            liveRegion: true,
-            label: '实时字幕',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                for (final line in controller.committedLines)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      line,
+  Widget _captionBody(CaptionController controller) {
+    final colors = _colors(context);
+    return Column(
+      children: [
+        _status(controller),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Semantics(
+              liveRegion: true,
+              label: '实时字幕',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (final line in controller.committedLines)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        line,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: colors.primaryText,
+                          fontSize: controller.settings.fontSize,
+                          height: 1.2,
+                        ),
+                      ),
+                    ),
+                  if (controller.partialText.isNotEmpty)
+                    Text(
+                      controller.partialText,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white,
+                        color: colors.dimText,
                         fontSize: controller.settings.fontSize,
                         height: 1.2,
                       ),
                     ),
-                  ),
-                if (controller.partialText.isNotEmpty)
-                  Text(
-                    controller.partialText,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: const Color(0xFFCACDD3),
-                      fontSize: controller.settings.fontSize,
-                      height: 1.2,
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 
   Widget _status(CaptionController controller) {
+    final colors = _colors(context);
     final status = switch (controller.status) {
       CaptionStatus.listening => '正在聆听',
       CaptionStatus.switching => '切换中…',
@@ -205,8 +217,8 @@ class _CaptionScreenState extends State<CaptionScreen> {
               style: TextStyle(
                 color:
                     error != null || controller.status == CaptionStatus.failed
-                    ? const Color(0xFFFFC5C0)
-                    : const Color(0xFFE1E3E8),
+                    ? colors.errorText
+                    : colors.statusText,
                 fontSize: 16,
               ),
             ),
@@ -221,10 +233,21 @@ class _CaptionScreenState extends State<CaptionScreen> {
     );
   }
 
+  String _modeLabel(CaptionMode mode) => switch (mode) {
+    CaptionMode.captions => '字幕',
+    CaptionMode.translateAll => '翻译',
+    CaptionMode.translateCustom => '自定义',
+  };
+
   /// In the landscape side rail, the bar is rotated in place rather than
   /// re-laid-out: the end nearest the edge that becomes the top (方向) ends
   /// up on top, so the vertical order is the horizontal order reversed.
+  ///
+  /// Portrait keeps all six buttons in a single shrunk row rather than
+  /// wrapping into a grid — a deliberate tradeoff against this app's usual
+  /// large-touch-target bias, accepted for this control bar specifically.
   Widget _controls({required bool vertical}) {
+    final settings = widget.controller.settings;
     final buttons = [
       _controlButton(
         semanticLabel: '增大字幕字号',
@@ -246,15 +269,35 @@ class _CaptionScreenState extends State<CaptionScreen> {
             ? null
             : () => _runAction(widget.coordinator.toggleOrientation),
       ),
+      _controlButton(
+        semanticLabel: '切换模式',
+        icon: Icons.translate,
+        text: _modeLabel(settings.captionMode),
+        onPressed: () => _runAction(widget.coordinator.cycleMode),
+      ),
+      _controlButton(
+        semanticLabel: '打开设置',
+        icon: Icons.settings,
+        text: '设置',
+        onPressed: widget.onOpenSettings,
+      ),
+      _controlButton(
+        semanticLabel: '切换昼夜模式',
+        icon: settings.themeMode == AppThemeMode.dark
+            ? Icons.light_mode
+            : Icons.dark_mode,
+        text: '昼夜',
+        onPressed: () => _runAction(widget.coordinator.toggleTheme),
+      ),
     ];
     final ordered = vertical ? buttons.reversed.toList() : buttons;
     final slots = [
       for (final button in ordered) Expanded(child: Center(child: button)),
     ];
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       child: vertical
-          ? SizedBox(width: 64, child: Column(children: slots))
+          ? SizedBox(width: 56, child: Column(children: slots))
           : Row(children: slots),
     );
   }
@@ -270,25 +313,28 @@ class _CaptionScreenState extends State<CaptionScreen> {
     child: IconButton(
       tooltip: semanticLabel,
       onPressed: onPressed,
-      constraints: const BoxConstraints(minWidth: 56, minHeight: 56),
+      constraints: const BoxConstraints(minWidth: 44, minHeight: 48),
       icon: _controlBody(icon, text),
     ),
   );
 
-  Widget _controlBody(IconData icon, String text) => SizedBox(
-    width: 64,
-    height: 56,
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, color: Colors.white),
-        Text(
-          text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: Colors.white, fontSize: 12),
-        ),
-      ],
-    ),
-  );
+  Widget _controlBody(IconData icon, String text) {
+    final colors = _colors(context);
+    return SizedBox(
+      width: 48,
+      height: 44,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: colors.primaryText, size: 20),
+          Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: colors.primaryText, fontSize: 10),
+          ),
+        ],
+      ),
+    );
+  }
 }
