@@ -162,20 +162,6 @@ class CaptionLifecycleCoordinator extends ChangeNotifier {
     _replaceIntent(_intent.copyWith(route: CaptureRoute.caption));
   }
 
-  Future<void> selectLanguage(String languageCode) async {
-    if (_disposed) return;
-    await _lock.synchronized(() => _controller.switchLanguage(languageCode));
-    if (!_disposed) await _queueReconcile();
-  }
-
-  Future<void> setLanguageEnabled(String languageCode, bool enabled) async {
-    if (_disposed) return;
-    await _lock.synchronized(
-      () => _controller.setLanguageEnabled(languageCode, enabled),
-    );
-    if (!_disposed) await _queueReconcile();
-  }
-
   Future<void> increaseFont() => _writeSetting(_controller.increaseFont);
 
   Future<void> decreaseFont() => _writeSetting(_controller.decreaseFont);

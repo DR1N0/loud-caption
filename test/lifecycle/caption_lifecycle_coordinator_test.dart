@@ -129,30 +129,6 @@ void main() {
     },
   );
 
-  test('selected language swaps the native model exactly once', () async {
-    await coordinator.initialize();
-
-    await coordinator.selectLanguage('en');
-
-    expect(engine.startedLanguages, ['zh', 'en']);
-    expect(engine.stopCalls, 1);
-    expect(controller.settings.languageCode, 'en');
-  });
-
-  test(
-    'failed language replacement rolls back without lifecycle churn',
-    () async {
-      await coordinator.initialize();
-      engine.failingLanguages.add('en');
-
-      await coordinator.selectLanguage('en');
-
-      expect(engine.startedLanguages, ['zh', 'en', 'zh']);
-      expect(controller.settings.languageCode, 'zh');
-      expect(controller.status, CaptionStatus.listening);
-    },
-  );
-
   test(
     'pause then resume cannot adopt a start still pending in native',
     () async {
@@ -399,23 +375,6 @@ void main() {
     expect(controller.currentSessionId, isNotNull);
   });
 
-  test(
-    'manual retry confirms cleanup after a failed language switch stop',
-    () async {
-      await coordinator.initialize();
-      engine.stopFailuresRemaining = 1;
-      await expectLater(coordinator.selectLanguage('en'), throwsStateError);
-      expect(controller.isStopConfirmed, isFalse);
-
-      await coordinator.retryCapture();
-
-      expect(engine.stopCalls, 2);
-      expect(engine.startedLanguages, ['zh', 'zh']);
-      expect(controller.status, CaptionStatus.listening);
-      expect(controller.settings.languageCode, 'zh');
-    },
-  );
-
   test('failed retry cleanup still blocks a new native start', () async {
     engine.failuresRemaining = 4;
     await coordinator.initialize();
@@ -438,7 +397,7 @@ void main() {
     await coordinator.initialize();
     final id = controller.currentSessionId!;
     expect(awake.enableCalls, 1);
-    engine.failingLanguages.add('zh');
+    engine.failingLanguages.add('auto');
 
     engine.emit(SpeechEvent(SpeechEventKind.error, 'decoder failed', id));
     await _flush();
@@ -479,7 +438,6 @@ class _MemorySettingsStore implements SettingsStore {
 
 class _FakeSpeechEngine implements SpeechEngine {
   final _events = StreamController<SpeechEvent>.broadcast();
-  final startedLanguages = <String>[];
   int startCalls = 0;
   int stopCalls = 0;
   int healthCalls = 0;
@@ -499,7 +457,6 @@ class _FakeSpeechEngine implements SpeechEngine {
 
   @override
   Future<int> start(String languageCode) async {
-    startedLanguages.add(languageCode);
     final pending = holdNextStart;
     holdNextStart = null;
     onStart?.call();
