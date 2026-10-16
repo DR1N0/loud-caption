@@ -103,7 +103,7 @@ class CaptionController extends ChangeNotifier {
     _notify();
 
     late final Future<void> task;
-    task = _startWithRetries(generation, _settings.languageCode);
+    task = _startWithRetries(generation);
     _lifecycleTask = task;
     try {
       await task;
@@ -151,45 +151,6 @@ class CaptionController extends ChangeNotifier {
     _notify();
   }
 
-  /// Switches the selected language without clearing readable final captions.
-  Future<void> switchLanguage(String languageCode) async {
-    await initialize();
-    if (_disposed) return;
-
-    CaptionSettings next;
-    try {
-      next = _settings.withLanguage(languageCode);
-    } on ArgumentError {
-      _message = '语言不可用';
-      _notify();
-      return;
-    }
-    if (next == _settings) return;
-    await _applySettingsWithPossibleSwitch(next);
-  }
-
-  /// Enables or disables an installed language and persists the choice.
-  Future<void> setLanguageEnabled(String code, bool enabled) async {
-    await initialize();
-    if (_disposed) return;
-
-    CaptionSettings next;
-    try {
-      next = _settings.withLanguageEnabled(code, enabled);
-    } on ArgumentError {
-      _message = '语言不可用';
-      _notify();
-      return;
-    }
-    if (next == _settings) return;
-
-    if (next.languageCode != _settings.languageCode) {
-      await _applySettingsWithPossibleSwitch(next);
-    } else {
-      await _saveAndApply(next);
-    }
-  }
-
   Future<void> increaseFont() => _changeFont(increase: true);
 
   Future<void> decreaseFont() => _changeFont(increase: false);
@@ -212,77 +173,6 @@ class CaptionController extends ChangeNotifier {
     await _saveAndApply(_settings.withLandscape(!_settings.landscape));
   }
 
-  Future<void> _applySettingsWithPossibleSwitch(CaptionSettings next) async {
-    if (!_wantsListening) {
-      await _saveAndApply(next);
-      return;
-    }
-
-    final previous = _settings;
-    final previousPartialText = _partialText;
-    final generation = ++_generation;
-    _sessionId = null;
-    _status = CaptionStatus.switching;
-    _message = null;
-    _notify();
-
-    await _stopEngine();
-    if (!_isCurrentListeningGeneration(generation)) return;
-
-    final started = await _startOnce(generation, next.languageCode);
-    if (started != _StartOutcome.success) {
-      await _restorePreviousLanguage(previous, previousPartialText, generation);
-      return;
-    }
-
-    // Only a successful replacement session closes the open utterance.
-    _partialText = '';
-    _status = CaptionStatus.listening;
-    _notify();
-
-    try {
-      await _settingsStore.save(next);
-    } catch (_) {
-      await _restorePreviousLanguage(previous, previousPartialText, generation);
-      return;
-    }
-    if (_disposed) return;
-
-    _settings = next;
-    _message = null;
-    _notify();
-  }
-
-  Future<void> _restorePreviousLanguage(
-    CaptionSettings previous,
-    String previousPartialText,
-    int failedGeneration,
-  ) async {
-    if (!_isCurrentListeningGeneration(failedGeneration)) return;
-
-    final rollbackGeneration = ++_generation;
-    _sessionId = null;
-    await _stopEngine();
-    if (!_isCurrentListeningGeneration(rollbackGeneration)) return;
-
-    final restored = await _startOnce(
-      rollbackGeneration,
-      previous.languageCode,
-    );
-    if (!_isCurrentListeningGeneration(rollbackGeneration)) return;
-
-    _settings = previous;
-    _partialText = previousPartialText;
-    _message = '切换失败';
-    if (restored == _StartOutcome.success) {
-      _status = CaptionStatus.listening;
-    } else if (restored == _StartOutcome.failure) {
-      _wantsListening = false;
-      _status = CaptionStatus.failed;
-    }
-    _notify();
-  }
-
   Future<void> _saveAndApply(CaptionSettings next) async {
     try {
       await _settingsStore.save(next);
@@ -299,7 +189,7 @@ class CaptionController extends ChangeNotifier {
     _notify();
   }
 
-  Future<void> _startWithRetries(int generation, String languageCode) async {
+  Future<void> _startWithRetries(int generation) async {
     for (var attempt = 0; attempt <= _retryDelays.length; attempt++) {
       if (!_isCurrentListeningGeneration(generation)) return;
       if (attempt > 0) {
@@ -309,7 +199,7 @@ class CaptionController extends ChangeNotifier {
         if (!_isCurrentListeningGeneration(generation)) return;
       }
 
-      final outcome = await _startOnce(generation, languageCode);
+      final outcome = await _startOnce(generation);
       if (outcome == _StartOutcome.success) {
         if (_isCurrentListeningGeneration(generation)) {
           _status = CaptionStatus.listening;
@@ -327,7 +217,7 @@ class CaptionController extends ChangeNotifier {
     _notify();
   }
 
-  Future<_StartOutcome> _startOnce(int generation, String languageCode) async {
+  Future<_StartOutcome> _startOnce(int generation) async {
     try {
       final session = await _serializeEngine(() async {
         if (!_mayStartCapture()) {
@@ -335,7 +225,7 @@ class CaptionController extends ChangeNotifier {
           return null;
         }
 
-        final startedSession = await _engine.start(languageCode);
+        final startedSession = await _engine.start('auto');
         if (!_isCurrentListeningGeneration(generation) || !_mayStartCapture()) {
           try {
             await _engine.stop();
@@ -409,11 +299,11 @@ class CaptionController extends ChangeNotifier {
         final generation = ++_generation;
         _sessionId = null;
         _notify();
-        unawaited(_recoverFromError(generation, _settings.languageCode));
+        unawaited(_recoverFromError(generation));
     }
   }
 
-  Future<void> _recoverFromError(int generation, String languageCode) async {
+  Future<void> _recoverFromError(int generation) async {
     if (!_isCurrentListeningGeneration(generation)) return;
     try {
       await _stopEngine();
@@ -435,7 +325,7 @@ class CaptionController extends ChangeNotifier {
       await _retryDelay(_retryDelays[attempt - 1]);
       if (!_isCurrentListeningGeneration(generation)) return;
 
-      final outcome = await _startOnce(generation, languageCode);
+      final outcome = await _startOnce(generation);
       if (outcome == _StartOutcome.success) {
         if (_isCurrentListeningGeneration(generation)) {
           _status = CaptionStatus.listening;

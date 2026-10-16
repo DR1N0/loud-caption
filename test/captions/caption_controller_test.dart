@@ -95,7 +95,7 @@ void main() {
       expect(captions.displayText, 'readable\nopen line');
       expect(captions.message, 'stream lost');
       expect(captions.status, CaptionStatus.retrying);
-      expect(engine.started, ['zh']);
+      expect(engine.started, ['auto']);
     });
 
     test(
@@ -149,7 +149,7 @@ void main() {
       releaseWait.complete();
       await starting;
 
-      expect(engine.started, ['zh']);
+      expect(engine.started, ['auto']);
       expect(captions.status, CaptionStatus.idle);
       expect(retryingCaptions.status, CaptionStatus.idle);
     });
@@ -180,7 +180,7 @@ void main() {
         releaseStart.complete();
         await starting;
 
-        expect(gatedEngine.started, ['zh']);
+        expect(gatedEngine.started, ['auto']);
         expect(gatedEngine.stopCalls, 1);
         expect(controller.currentSessionId, isNull);
         expect(controller.status, CaptionStatus.idle);
@@ -251,106 +251,11 @@ void main() {
       await flushEvents();
       await flushEvents();
 
-      expect(gatedEngine.started, ['zh']);
+      expect(gatedEngine.started, ['auto']);
       expect(controller.currentSessionId, isNull);
       expect(controller.isStopConfirmed, isTrue);
       expect(controller.status, CaptionStatus.idle);
     });
-
-    test(
-      'revoked gate after old stop blocks switch and rollback starts',
-      () async {
-        var canCapture = true;
-        final gatedEngine = FakeSpeechEngine();
-        final controller = CaptionController(
-          engine: gatedEngine,
-          settingsStore: MemorySettingsStore(),
-          mayStartCapture: () => canCapture,
-        );
-        addTearDown(() async {
-          await controller.stop();
-          controller.dispose();
-          await gatedEngine.dispose();
-        });
-
-        await controller.initialize();
-        await controller.start();
-        expect(controller.currentSessionId, 1);
-        gatedEngine.emit(
-          const SpeechEvent(SpeechEventKind.finalText, 'kept', 1),
-        );
-        await flushEvents();
-        gatedEngine.afterStop = () => canCapture = false;
-
-        await controller.switchLanguage('en');
-
-        expect(gatedEngine.started, ['zh']);
-        expect(controller.displayText, 'kept');
-        expect(controller.currentSessionId, isNull);
-        expect(controller.isStopConfirmed, isTrue);
-        expect(controller.status, CaptionStatus.idle);
-      },
-    );
-
-    test(
-      'late prior-session events cannot overwrite a switched language',
-      () async {
-        await captions.initialize();
-        await captions.start();
-        engine.emit(const SpeechEvent(SpeechEventKind.finalText, 'kept', 1));
-        await flushEvents();
-
-        await captions.switchLanguage('en');
-        engine.emit(const SpeechEvent(SpeechEventKind.partial, 'stale', 1));
-        await flushEvents();
-
-        expect(engine.started, ['zh', 'en']);
-        expect(captions.settings.languageCode, 'en');
-        expect(captions.displayText, 'kept');
-        expect(captions.partialText, isEmpty);
-      },
-    );
-
-    test(
-      'a failed active switch rolls back to the prior language and text',
-      () async {
-        await captions.initialize();
-        await captions.start();
-        engine.emit(const SpeechEvent(SpeechEventKind.finalText, 'kept', 1));
-        await flushEvents();
-        engine.failingLanguages.add('en');
-
-        await captions.switchLanguage('en');
-
-        expect(engine.started, ['zh', 'en', 'zh']);
-        expect(captions.settings.languageCode, 'zh');
-        expect(captions.displayText, 'kept');
-        expect(captions.message, '切换失败');
-        expect(captions.status, CaptionStatus.listening);
-      },
-    );
-
-    test(
-      'a persistence failure restores an open line after active switch rollback',
-      () async {
-        await captions.initialize();
-        await captions.start();
-        engine.emit(const SpeechEvent(SpeechEventKind.finalText, 'kept', 1));
-        engine.emit(const SpeechEvent(SpeechEventKind.partial, 'open line', 1));
-        await flushEvents();
-        store.failSaves = true;
-
-        await captions.switchLanguage('en');
-
-        expect(engine.started, ['zh', 'en', 'zh']);
-        expect(captions.settings.languageCode, 'zh');
-        expect(captions.committedLines, ['kept']);
-        expect(captions.partialText, 'open line');
-        expect(captions.displayText, 'kept\nopen line');
-        expect(captions.message, '切换失败');
-        expect(captions.status, CaptionStatus.listening);
-      },
-    );
 
     test(
       'a stream-error stop failure becomes stable without a new start',
@@ -365,7 +270,7 @@ void main() {
         await flushEvents();
         await flushEvents();
 
-        expect(engine.started, ['zh']);
+        expect(engine.started, ['auto']);
         expect(captions.committedLines, ['kept']);
         expect(captions.status, CaptionStatus.failed);
         expect(captions.message, contains('停止识别失败'));
@@ -390,45 +295,6 @@ void main() {
         expect(captions.status, CaptionStatus.idle);
         expect(captions.message, isNull);
         captions.dispose();
-      },
-    );
-
-    test(
-      'switching while stopped saves preference without opening the mic',
-      () async {
-        await captions.initialize();
-
-        await captions.switchLanguage('en');
-
-        expect(engine.started, isEmpty);
-        expect(captions.settings.languageCode, 'en');
-        expect(store.value.languageCode, 'en');
-      },
-    );
-
-    test('the final enabled language cannot be disabled', () async {
-      await captions.initialize();
-
-      await captions.setLanguageEnabled('en', false);
-      await captions.setLanguageEnabled('zh', false);
-
-      expect(captions.settings.enabledLanguages, ['zh']);
-      expect(captions.settings.languageCode, 'zh');
-      expect(store.value.enabledLanguages, ['zh']);
-    });
-
-    test(
-      'a settings save failure retains old preferences and reports an error',
-      () async {
-        await captions.initialize();
-        store.failSaves = true;
-
-        await captions.switchLanguage('en');
-
-        expect(captions.settings.languageCode, 'zh');
-        expect(store.value.languageCode, 'zh');
-        expect(captions.message, isNotEmpty);
-        expect(captions.status, CaptionStatus.idle);
       },
     );
 
@@ -472,14 +338,12 @@ class MemorySettingsStore implements SettingsStore {
 class FakeSpeechEngine implements SpeechEngine {
   final controller = StreamController<SpeechEvent>.broadcast();
   final started = <String>[];
-  final failingLanguages = <String>{};
   int nextId = 0;
   int failuresRemaining = 0;
   int stopFailuresRemaining = 0;
   int stopCalls = 0;
   Future<void>? holdStart;
   void Function()? onStart;
-  void Function()? afterStop;
   int? _activeSessionId;
 
   @override
@@ -493,9 +357,6 @@ class FakeSpeechEngine implements SpeechEngine {
     if (failuresRemaining > 0) {
       failuresRemaining--;
       throw StateError('test-only start failure');
-    }
-    if (failingLanguages.contains(languageCode)) {
-      throw StateError('test-only $languageCode failure');
     }
     return _activeSessionId = ++nextId;
   }
@@ -512,7 +373,6 @@ class FakeSpeechEngine implements SpeechEngine {
       throw StateError('test-only stop failure');
     }
     _activeSessionId = null;
-    afterStop?.call();
   }
 
   @override
