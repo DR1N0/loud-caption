@@ -21,10 +21,11 @@ See [`docs/model-sources.md`](docs/model-sources.md) and [`THIRD_PARTY_NOTICES.m
 ### Requirements
 
 - Flutter SDK (verified with 3.41.7)
-- Android Studio with its Android SDK (`adb`, `aapt`, `apksigner`, an emulator or device)
+- Android Studio with its Android SDK (`adb`, `aapt`, `apksigner`, an emulator or device) plus the NDK and CMake SDK components — the translation plugin compiles llama.cpp from source at build time
 - Python 3
 - A JDK 17 your network's TLS setup trusts for resolving Gradle dependencies (the `Makefile` defaults to a local Zulu 17 install — override `JAVA17_HOME` if yours lives elsewhere)
 - `make`
+- A device or emulator running Android 8.0 (API 26) or later — raised from API 24 by the translation plugin's minimum
 
 ### Common commands
 
@@ -47,7 +48,7 @@ make install-debug     # build + adb install -r the debug APK
 make install-release   # build + adb install -r the release APK
 ```
 
-On first launch, the app downloads and checksum-verifies its ~240 MB speech recognition model (SenseVoice + Silero VAD) before anything else is usable — allow time, storage, and a network connection for this one-time download. After that, tap **开始** and grant the microphone permission Android prompts for; the app needs no network connection from that point on.
+On first launch, the app downloads and checksum-verifies its ~240 MB speech recognition model (SenseVoice + Silero VAD) before anything else is usable — allow time, storage, and a network connection for this one-time download. After that, tap **开始** and grant the microphone permission Android prompts for; the app needs no network connection from that point on. Switching into a translation mode later triggers a second, separate on-demand download (~1.08 GB, Hy-MT2 — see [`docs/model-sources.md`](docs/model-sources.md)); skip that unless you want to use translation.
 
 ### Signing
 
@@ -62,4 +63,6 @@ The tradeoff: because the key is public, anyone with this repo can produce an AP
 
 ### Status
 
-This app migrated its speech engine from Vosk to sherpa-onnx (SenseVoice ASR + Silero VAD). Further testing showed SenseVoice's automatic language detection ("auto" mode) is accurate enough on its own — no observed Chinese-misheard-as-English cases — that the manual language-switching UI (Settings screen language list, caption-screen language toggle) was removed entirely; it remains in git history if a future feature wants it back. One phone has run the sherpa-onnx engine in auto mode with stable, accurate real-time Chinese/English captions. This specific build (including the simplified control bar) has been verified with the full automated test suite and on an Android emulator, but a dedicated real-device smoke test of this exact build is still outstanding. Foreground-resume behavior, caption accuracy across devices, and device-specific battery/thermal/accessibility behavior have not been independently verified. Online translation, downloadable language packs, cloud sync, caption history, and iOS are intentionally out of scope.
+This app migrated its speech engine from Vosk to sherpa-onnx (SenseVoice ASR + Silero VAD). Further testing showed SenseVoice's automatic language detection ("auto" mode) is accurate enough on its own — no observed Chinese-misheard-as-English cases — that the manual language-switching UI (Settings screen language list, caption-screen language toggle) was removed. ASR models are now downloaded on first launch rather than bundled in the APK, and the Settings screen has since been re-added to configure on-device translation. One phone has run the sherpa-onnx engine in auto mode with stable, accurate real-time Chinese/English captions, but a dedicated real-device smoke test of the current build is still outstanding. Foreground-resume behavior, caption accuracy across devices, and device-specific battery/thermal/accessibility behavior have not been independently verified.
+
+On-device translation (Hy-MT2-1.8B via llama.cpp, never cloud-based) is under active development: the mode-cycling button, Settings screen, and the translation engine itself all exist and build correctly, but the engine isn't wired into the live caption pipeline yet — cycling to a translation mode doesn't translate anything yet. Downloadable language packs, cloud sync, caption history, and iOS remain intentionally out of scope.

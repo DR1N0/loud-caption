@@ -28,3 +28,15 @@ The SenseVoice ONNX export (`model.int8.onnx` + `tokens.txt`) is a converted/qua
 The Silero VAD model (`silero_vad.onnx`) is MIT-licensed by the Silero Team (<https://github.com/snakers4/silero-vad/blob/master/LICENSE>); the full text is also reproduced in [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md).
 
 This project is distributed as a public GitHub Release. [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md) packages the applicable license texts and attribution for sherpa-onnx, the `record` package, the FunASR/SenseVoice model, and the Silero VAD model alongside the APK. Check whether upstream provides any further notices or terms for these exact file versions before a future model-version bump; the license labels above do not establish training-data provenance. Do not infer model-data rights solely from sherpa-onnx's own code license.
+
+## Hy-MT2 translation model
+
+| Component | Archive / file | Download size | Pinned SHA-256 | License |
+| --- | --- | --- | --- | --- |
+| Hy-MT2-1.8B (Q4_K_M) | [`Hy-MT2-1.8B-Q4_K_M.gguf`](https://huggingface.co/tencent/Hy-MT2-1.8B-GGUF/resolve/main/Hy-MT2-1.8B-Q4_K_M.gguf) | 1,133,080,448 bytes (~1.05 GiB / ~1.08 GB) | `dc5f44fcf1fa496ee7ad725982c0c8c553a4de00259b53af84c4b89fb0c06699` | Apache License 2.0 |
+
+Authoritative source: the `tencent/Hy-MT2-1.8B-GGUF` repository on Hugging Face. Downloaded on demand by `lib/translation/hy_mt2_model_download.dart` (reusing `lib/downloads/model_downloader.dart`'s same streaming-hash-then-atomic-rename pipeline as the ASR models above) the first time the user switches into a translation mode — not at first launch, since most users may never use translation.
+
+**Why Q4_K_M and not the smaller 1.25-bit/2-bit variants.** Tencent also publishes `Hy-MT2-1.8B-1.25bit-GGUF` (~440 MB) and `Hy-MT2-1.8B-2bit-GGUF` (~573 MB), both using a custom AngelSlim "Sherry"/STQ1_0 ternary quantization. That ggml kernel is not in mainline llama.cpp — it's still an open, unmerged pull request ([ggml-org/llama.cpp#22836](https://github.com/ggml-org/llama.cpp/pull/22836)) — so no existing Flutter llama.cpp plugin can load those files. Q4_K_M is a standard ggml quantization type any such plugin's vendored llama.cpp already supports, at the cost of a larger download.
+
+**Inference.** `lib/translation/llama_translation_engine.dart` runs the model via the `llama_flutter_android` package (MIT-licensed, vendors an unmodified llama.cpp build), on the CPU only (no GPU offload requested), with the plugin's thread count capped so it doesn't compete for every core with the ASR/VAD isolates. Prompts are hand-built to match Hy-MT2's own chat template exactly — confirmed against `train/llama_factory_support/hy_dense_template.py` in the upstream [`Tencent-Hunyuan/Hy-MT2`](https://github.com/Tencent-Hunyuan/Hy-MT2) repository, not inferred or guessed — since the model has no default system prompt and none of the plugin's built-in templates (ChatML, Llama-2, etc.) match Hunyuan's token format.

@@ -12,7 +12,7 @@ import 'speech/sense_voice_model_download.dart';
 import 'speech/sherpa_onnx_speech_engine.dart';
 import 'speech/speech_engine.dart';
 import 'speech/vad_chunked_sense_voice_strategy.dart';
-import 'translation/noop_translation_engine.dart';
+import 'translation/llama_translation_engine.dart';
 import 'translation/translation_engine.dart';
 import 'ui/caption_screen.dart';
 import 'ui/caption_theme.dart';
@@ -84,7 +84,7 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
     _controller = CaptionController(
       engine: _engine,
       settingsStore: widget.settingsStore ?? SharedPreferencesSettingsStore(),
-      translationEngine: widget.translationEngine ?? NoopTranslationEngine(),
+      translationEngine: widget.translationEngine ?? LlamaTranslationEngine(),
       mayStartCapture: () => _coordinator.mayStartCapture,
     );
     _themeMode = _controller.settings.themeMode;

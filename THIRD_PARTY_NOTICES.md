@@ -48,6 +48,12 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
+## llama_flutter_android
+
+- Project: [dragneel2074/Llama-Flutter](https://github.com/dragneel2074/Llama-Flutter)
+- License: MIT License
+- Used as: `llama_flutter_android` Flutter package dependency (unmodified) — vendors an unmodified build of [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) (MIT License) for on-device Hy-MT2 inference
+
 ## Downloaded speech models
 
 Both model files are downloaded on first launch (`lib/speech/sense_voice_model_download.dart`) from the `asr-models` release of `k2-fsa/sherpa-onnx`, verified against a pinned SHA-256, and stored in app-private storage — they are not bundled in the APK. Their model-data licenses are independent of sherpa-onnx's own Apache-2.0 code license above.
@@ -60,6 +66,16 @@ Both model files are downloaded on first launch (`lib/speech/sense_voice_model_d
 See [`docs/model-sources.md`](docs/model-sources.md) for the pinned SHA-256 digests and download/installed sizes for both files.
 
 The SenseVoice ONNX export bundled here is a converted/quantized derivative of Alibaba's FunASR SenseVoice model, per that model's own Hugging Face model card; it is governed by the FunASR Model License below, independent of the sherpa-onnx project that hosts the converted file.
+
+## Downloaded translation model
+
+Downloaded on demand, the first time translation is used (`lib/translation/hy_mt2_model_download.dart`), from Tencent's `Hy-MT2-1.8B-GGUF` Hugging Face repository, verified against a pinned SHA-256, and stored in app-private storage.
+
+| Component | Exact file | Source | License |
+| --- | --- | --- | --- |
+| Hy-MT2-1.8B (Q4_K_M quantization) | `Hy-MT2-1.8B-Q4_K_M.gguf` | <https://huggingface.co/tencent/Hy-MT2-1.8B-GGUF> | Apache License 2.0 |
+
+See [`docs/model-sources.md`](docs/model-sources.md) for why this quantization was chosen over the smaller AngelSlim 1.25-bit/2-bit variants in sibling repositories (they need a ggml kernel not yet in mainline llama.cpp).
 
 ## FunASR Model Open Source License Agreement v1.1 (full text, governs the bundled SenseVoice model weights)
 

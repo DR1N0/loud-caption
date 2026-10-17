@@ -24,7 +24,10 @@ android {
         applicationId = "app.loudcaption.loud_caption"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Raised from Flutter's default (24) to 26: the llama_flutter_android
+        // plugin (Hy-MT2 translation) requires API 26+ for SharedMemory
+        // support and the manifest merger rejects anything lower.
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
