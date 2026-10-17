@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../settings/app_settings.dart';
 import '../speech/speech_engine.dart';
 import '../translation/translation_engine.dart';
+import 'caption_line.dart';
 
 /// The recognition lifecycle currently visible to the caption UI.
 enum CaptionStatus { idle, starting, listening, switching, retrying, failed }
@@ -39,7 +40,7 @@ class CaptionController extends ChangeNotifier {
   final TranslationEngine? _translationEngine;
   final RetryDelay _retryDelay;
   final bool Function() _mayStartCapture;
-  final List<String> _committedLines = [];
+  final List<CaptionLine> _committedLines = [];
 
   CaptionSettings _settings = CaptionSettings();
   StreamSubscription<SpeechEvent>? _eventSubscription;
@@ -53,15 +54,24 @@ class CaptionController extends ChangeNotifier {
   bool _stopConfirmed = true;
   bool _disposed = false;
   String _partialText = '';
+  String? _partialTranslation;
+  TranslationRequest? _partialTranslationRequest;
   String? _message;
   CaptionStatus _status = CaptionStatus.idle;
 
   CaptionSettings get settings => _settings;
   TranslationEngine? get translationEngine => _translationEngine;
-  List<String> get committedLines => List<String>.unmodifiable(_committedLines);
+  List<CaptionLine> get committedLines =>
+      List<CaptionLine>.unmodifiable(_committedLines);
   String get partialText => _partialText;
+
+  /// The in-progress translation of [partialText], updated speculatively
+  /// while the line is still uncommitted (see [_maybeStartPartialTranslation]
+  /// for the skip-if-busy trigger). Superseded by the committed line's own
+  /// translation the moment a `finalText` event arrives.
+  String? get partialTranslation => _partialTranslation;
   String get displayText => [
-    ..._committedLines,
+    ..._committedLines.map((line) => line.original),
     if (_partialText.isNotEmpty) _partialText,
   ].join('\n');
   CaptionStatus get status => _status;
@@ -182,6 +192,12 @@ class CaptionController extends ChangeNotifier {
     await initialize();
     if (_disposed) return;
     await _saveAndApply(_settings.withCaptionMode(_settings.captionMode.next));
+  }
+
+  Future<void> setCaptionMode(CaptionMode mode) async {
+    await initialize();
+    if (_disposed) return;
+    await _saveAndApply(_settings.withCaptionMode(mode));
   }
 
   Future<void> toggleTheme() async {
@@ -315,13 +331,21 @@ class CaptionController extends ChangeNotifier {
         if (_partialText == event.text) return;
         _partialText = event.text;
         _notify();
+        _maybeStartPartialTranslation(event.text, event.detectedLanguage);
       case SpeechEventKind.finalText:
+        _partialTranslationRequest?.cancel();
+        _partialTranslationRequest = null;
         _partialText = '';
+        _partialTranslation = null;
         if (event.text.isNotEmpty) {
-          _committedLines.add(event.text);
+          final line = CaptionLine(event.text);
+          _committedLines.add(line);
           if (_committedLines.length > 2) _committedLines.removeAt(0);
+          _notify();
+          _startFinalTranslation(line, event.detectedLanguage);
+        } else {
+          _notify();
         }
-        _notify();
       case SpeechEventKind.error:
         _message = event.text;
         _status = CaptionStatus.retrying;
@@ -330,6 +354,94 @@ class CaptionController extends ChangeNotifier {
         _notify();
         unawaited(_recoverFromError(generation));
     }
+  }
+
+  /// Resolves the target language [detectedLanguage] should be translated
+  /// into under the current mode, or `null` if it shouldn't be translated at
+  /// all — translation is off, the engine isn't ready, the language is
+  /// unrecognized/Cantonese (never routed), or it already maps to itself.
+  String? _resolveTranslationTarget(String? detectedLanguage) {
+    final engine = _translationEngine;
+    if (engine == null || !engine.isLoaded) return null;
+    if (_settings.captionMode == CaptionMode.captions) return null;
+    if (detectedLanguage == null ||
+        !translationLanguages.contains(detectedLanguage)) {
+      return null;
+    }
+    final target = _settings.captionMode == CaptionMode.translateAll
+        ? _settings.translateAllTarget
+        : _settings.routingTargetFor(detectedLanguage);
+    return target == detectedLanguage ? null : target;
+  }
+
+  /// Speculatively translates the still-uncommitted partial line for a
+  /// pseudo-streaming effect, mirroring the ASR pipeline's own
+  /// skip-if-busy backpressure: a partial in flight is never queued behind,
+  /// just dropped, so this never falls further behind than one translation
+  /// call. Always superseded by [_startFinalTranslation] once the line
+  /// commits.
+  void _maybeStartPartialTranslation(String text, String? detectedLanguage) {
+    if (_partialTranslationRequest != null) return;
+    final target = _resolveTranslationTarget(detectedLanguage);
+    if (target == null) return;
+
+    final request = _translationEngine!.translate(
+      text: text,
+      sourceLang: detectedLanguage!,
+      targetLang: target,
+    );
+    _partialTranslationRequest = request;
+    var buffer = '';
+    request.output.listen(
+      (token) {
+        buffer += token;
+        _partialTranslation = buffer;
+        _notify();
+      },
+      onDone: () {
+        if (identical(_partialTranslationRequest, request)) {
+          _partialTranslationRequest = null;
+        }
+      },
+      onError: (Object _) {
+        if (identical(_partialTranslationRequest, request)) {
+          _partialTranslationRequest = null;
+        }
+      },
+      cancelOnError: true,
+    );
+  }
+
+  /// Always translates a freshly committed line — unlike the partial trigger
+  /// above, a final result is authoritative and must never be skipped or
+  /// left showing a stale partial's translation. Writes each growing token
+  /// back into the line's current list slot by identity, so a (rare) scroll
+  /// of this line off the two-line window before translation finishes just
+  /// silently stops applying further updates.
+  void _startFinalTranslation(CaptionLine originalLine, String? detectedLanguage) {
+    final target = _resolveTranslationTarget(detectedLanguage);
+    if (target == null) return;
+
+    final request = _translationEngine!.translate(
+      text: originalLine.original,
+      sourceLang: detectedLanguage!,
+      targetLang: target,
+    );
+    var currentLine = originalLine;
+    var buffer = '';
+    request.output.listen(
+      (token) {
+        buffer += token;
+        final index = _committedLines.indexWhere(
+          (line) => identical(line, currentLine),
+        );
+        if (index == -1) return;
+        currentLine = currentLine.withTranslation(buffer);
+        _committedLines[index] = currentLine;
+        _notify();
+      },
+      onError: (Object _) {},
+    );
   }
 
   Future<void> _recoverFromError(int generation) async {
@@ -392,6 +504,8 @@ class CaptionController extends ChangeNotifier {
     final subscription = _eventSubscription;
     _eventSubscription = null;
     if (subscription != null) unawaited(subscription.cancel());
+    _partialTranslationRequest?.cancel();
+    _partialTranslationRequest = null;
     super.dispose();
   }
 

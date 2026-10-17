@@ -10,6 +10,8 @@ import 'package:loud_caption/settings/app_settings.dart';
 import 'package:loud_caption/speech/speech_engine.dart';
 import 'package:loud_caption/ui/orientation_manager.dart';
 
+import '../translation/fake_translation_engine.dart';
+
 void main() {
   testWidgets('requests microphone access only after tapping 开始', (
     tester,
@@ -77,9 +79,7 @@ void main() {
       final session = fixture.engine.activeSessionId!;
       fixture.engine.emit(SpeechEvent(SpeechEventKind.partial, '你', session));
       await fixture.advance(tester);
-      fixture.engine.emit(
-        SpeechEvent(SpeechEventKind.partial, '你好', session),
-      );
+      fixture.engine.emit(SpeechEvent(SpeechEventKind.partial, '你好', session));
       await fixture.advance(tester);
       expect(find.text('你好'), findsOneWidget);
       expect(find.text('你'), findsNothing);
@@ -95,39 +95,36 @@ void main() {
     },
   );
 
-  testWidgets(
-    'landscape rotates the control bar into a side rail, '
-    'reversed top-to-bottom',
-    (tester) async {
-      tester.view.physicalSize = const Size(2400, 1080);
-      tester.view.devicePixelRatio = 3.0;
-      addTearDown(tester.view.reset);
-      final fixture = _Fixture();
-      await fixture.pump(tester);
+  testWidgets('landscape rotates the control bar into a side rail, '
+      'reversed top-to-bottom', (tester) async {
+    tester.view.physicalSize = const Size(2400, 1080);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
+    final fixture = _Fixture();
+    await fixture.pump(tester);
 
-      expect(find.bySemanticsLabel('增大字幕字号'), findsOneWidget);
-      expect(find.bySemanticsLabel('减小字幕字号'), findsOneWidget);
-      expect(find.bySemanticsLabel('切换屏幕方向'), findsOneWidget);
-      expect(find.bySemanticsLabel('切换模式'), findsOneWidget);
-      expect(find.bySemanticsLabel('打开设置'), findsOneWidget);
-      expect(find.bySemanticsLabel('切换昼夜模式'), findsOneWidget);
+    expect(find.bySemanticsLabel('增大字幕字号'), findsOneWidget);
+    expect(find.bySemanticsLabel('减小字幕字号'), findsOneWidget);
+    expect(find.bySemanticsLabel('切换屏幕方向'), findsOneWidget);
+    expect(find.bySemanticsLabel('切换模式'), findsOneWidget);
+    expect(find.bySemanticsLabel('打开设置'), findsOneWidget);
+    expect(find.bySemanticsLabel('切换昼夜模式'), findsOneWidget);
 
-      final topToBottom = [
-        tester.getCenter(find.bySemanticsLabel('切换昼夜模式')).dy,
-        tester.getCenter(find.bySemanticsLabel('打开设置')).dy,
-        tester.getCenter(find.bySemanticsLabel('切换模式')).dy,
-        tester.getCenter(find.bySemanticsLabel('切换屏幕方向')).dy,
-        tester.getCenter(find.bySemanticsLabel('减小字幕字号')).dy,
-        tester.getCenter(find.bySemanticsLabel('增大字幕字号')).dy,
-      ];
-      expect(topToBottom, equals(List<double>.from(topToBottom)..sort()));
-      expect(
-        tester.getCenter(find.bySemanticsLabel('切换昼夜模式')).dx,
-        tester.getCenter(find.bySemanticsLabel('增大字幕字号')).dx,
-      );
-      await fixture.close(tester);
-    },
-  );
+    final topToBottom = [
+      tester.getCenter(find.bySemanticsLabel('切换昼夜模式')).dy,
+      tester.getCenter(find.bySemanticsLabel('打开设置')).dy,
+      tester.getCenter(find.bySemanticsLabel('切换模式')).dy,
+      tester.getCenter(find.bySemanticsLabel('切换屏幕方向')).dy,
+      tester.getCenter(find.bySemanticsLabel('减小字幕字号')).dy,
+      tester.getCenter(find.bySemanticsLabel('增大字幕字号')).dy,
+    ];
+    expect(topToBottom, equals(List<double>.from(topToBottom)..sort()));
+    expect(
+      tester.getCenter(find.bySemanticsLabel('切换昼夜模式')).dx,
+      tester.getCenter(find.bySemanticsLabel('增大字幕字号')).dx,
+    );
+    await fixture.close(tester);
+  });
 
   testWidgets('rotation keeps one active speech session and wakelock', (
     tester,
@@ -175,6 +172,71 @@ void main() {
     expect(find.text('开始'), findsOneWidget);
     await fixture.close(tester);
   });
+
+  testWidgets(
+    'cycling into 翻译 mode prompts to download the model, then loads it',
+    (tester) async {
+      final fixture = _Fixture();
+      await fixture.pump(tester);
+
+      await tester.tap(find.bySemanticsLabel('切换模式'));
+      await fixture.advance(tester);
+      expect(find.text('下载翻译模型'), findsOneWidget);
+      expect(fixture.translation.isLoaded, isFalse);
+
+      await tester.tap(find.text('下载'));
+      await fixture.advance(tester);
+
+      expect(fixture.translation.isLoaded, isTrue);
+      expect(find.text('下载翻译模型'), findsNothing);
+      expect(fixture.store.value.captionMode, CaptionMode.translateAll);
+      await fixture.close(tester);
+    },
+  );
+
+  testWidgets('declining the download returns the mode to 字幕', (tester) async {
+    final fixture = _Fixture();
+    await fixture.pump(tester);
+
+    await tester.tap(find.bySemanticsLabel('切换模式'));
+    await fixture.advance(tester);
+    await tester.tap(find.text('取消'));
+    await fixture.advance(tester);
+
+    expect(fixture.translation.isLoaded, isFalse);
+    expect(fixture.store.value.captionMode, CaptionMode.captions);
+    await fixture.close(tester);
+  });
+
+  testWidgets(
+    'a translated committed line shows both original and translation',
+    (tester) async {
+      final fixture = _Fixture();
+      fixture.translation.isLoaded = true;
+      fixture.store.value = fixture.store.value
+          .withCaptionMode(CaptionMode.translateAll)
+          .withTranslateAllTarget('en');
+      await fixture.pump(tester);
+
+      final session = fixture.engine.activeSessionId!;
+      fixture.engine.emit(
+        SpeechEvent(
+          SpeechEventKind.finalText,
+          '你好',
+          session,
+          detectedLanguage: 'zh',
+        ),
+      );
+      await fixture.advance(tester);
+
+      fixture.translation.calls.single.request.emit('Hello');
+      await fixture.advance(tester);
+
+      expect(find.text('你好'), findsOneWidget);
+      expect(find.text('Hello'), findsOneWidget);
+      await fixture.close(tester);
+    },
+  );
 }
 
 class _Fixture {
@@ -189,6 +251,7 @@ class _Fixture {
 
   final engine = _FakeSpeechEngine();
   final awake = _FakeScreenAwake();
+  final translation = FakeTranslationEngine();
   final _FakeMicrophoneAccess microphone;
   final _MemorySettingsStore store;
   final OrientationManager orientationManager;
@@ -198,6 +261,7 @@ class _Fixture {
       CaptionApp(
         engine: engine,
         settingsStore: store,
+        translationEngine: translation,
         microphoneAccess: microphone,
         screenAwake: awake,
         orientationManager: orientationManager,

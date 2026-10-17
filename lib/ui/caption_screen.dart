@@ -67,6 +67,70 @@ class _CaptionScreenState extends State<CaptionScreen> {
     );
   }
 
+  Future<void> _onCycleModePressed() async {
+    try {
+      await widget.coordinator.cycleMode();
+    } catch (error) {
+      if (mounted) setState(() => _actionError = '操作失败: $error');
+      return;
+    }
+    if (mounted && _actionError != null) setState(() => _actionError = null);
+    if (!mounted) return;
+
+    final engine = widget.controller.translationEngine;
+    final mode = widget.controller.settings.captionMode;
+    if (mode == CaptionMode.captions || engine == null || engine.isLoaded) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('下载翻译模型'),
+        content: const Text('首次使用翻译需要下载约 1.08 GB 的翻译模型，确定现在下载吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('下载'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (confirmed != true) {
+      _runAction(() => widget.coordinator.setCaptionMode(CaptionMode.captions));
+      return;
+    }
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 20),
+            Expanded(child: Text('正在下载翻译模型…')),
+          ],
+        ),
+      ),
+    );
+    try {
+      await engine.ensureLoaded();
+    } catch (error) {
+      if (mounted) {
+        setState(() => _actionError = '翻译模型下载失败: $error');
+        await widget.coordinator.setCaptionMode(CaptionMode.captions);
+      }
+    } finally {
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    }
+  }
+
   @override
   void dispose() {
     widget.controller.removeListener(_onChanged);
@@ -164,25 +228,33 @@ class _CaptionScreenState extends State<CaptionScreen> {
                   for (final line in controller.committedLines)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        line,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: colors.primaryText,
-                          fontSize: controller.settings.fontSize,
-                          height: 1.2,
-                        ),
+                      child: Column(
+                        children: [
+                          _captionText(
+                            line.original,
+                            controller.settings.fontSize,
+                            colors.primaryText,
+                          ),
+                          if (line.translation != null)
+                            _captionText(
+                              line.translation!,
+                              controller.settings.fontSize,
+                              colors.dimText,
+                            ),
+                        ],
                       ),
                     ),
                   if (controller.partialText.isNotEmpty)
-                    Text(
+                    _captionText(
                       controller.partialText,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: colors.dimText,
-                        fontSize: controller.settings.fontSize,
-                        height: 1.2,
-                      ),
+                      controller.settings.fontSize,
+                      colors.dimText,
+                    ),
+                  if (controller.partialTranslation != null)
+                    _captionText(
+                      controller.partialTranslation!,
+                      controller.settings.fontSize,
+                      colors.dimText,
                     ),
                 ],
               ),
@@ -192,6 +264,12 @@ class _CaptionScreenState extends State<CaptionScreen> {
       ],
     );
   }
+
+  Widget _captionText(String text, double fontSize, Color color) => Text(
+    text,
+    textAlign: TextAlign.center,
+    style: TextStyle(color: color, fontSize: fontSize, height: 1.2),
+  );
 
   Widget _status(CaptionController controller) {
     final colors = _colors(context);
@@ -273,7 +351,7 @@ class _CaptionScreenState extends State<CaptionScreen> {
         semanticLabel: '切换模式',
         icon: Icons.translate,
         text: _modeLabel(settings.captionMode),
-        onPressed: () => _runAction(widget.coordinator.cycleMode),
+        onPressed: () => unawaited(_onCycleModePressed()),
       ),
       _controlButton(
         semanticLabel: '打开设置',

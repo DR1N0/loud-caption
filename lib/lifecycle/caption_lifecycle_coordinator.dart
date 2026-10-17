@@ -5,6 +5,7 @@ import 'package:synchronized/synchronized.dart';
 
 import '../captions/caption_controller.dart';
 import '../permissions/microphone_access.dart';
+import '../settings/app_settings.dart';
 import '../speech/speech_engine.dart';
 import '../ui/orientation_manager.dart';
 import 'capture_intent.dart';
@@ -156,6 +157,9 @@ class CaptionLifecycleCoordinator extends ChangeNotifier {
   Future<void> decreaseFont() => _writeSetting(_controller.decreaseFont);
 
   Future<void> cycleMode() => _writeSetting(_controller.cycleMode);
+
+  Future<void> setCaptionMode(CaptionMode mode) =>
+      _writeSetting(() => _controller.setCaptionMode(mode));
 
   Future<void> toggleTheme() => _writeSetting(_controller.toggleTheme);
 

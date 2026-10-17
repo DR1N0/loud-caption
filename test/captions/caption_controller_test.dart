@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:loud_caption/captions/caption_controller.dart';
+import 'package:loud_caption/captions/caption_line.dart';
 import 'package:loud_caption/settings/app_settings.dart';
 import 'package:loud_caption/speech/speech_engine.dart';
 import 'package:loud_caption/translation/noop_translation_engine.dart';
@@ -40,7 +41,7 @@ void main() {
       engine.emit(const SpeechEvent(SpeechEventKind.finalText, 'hello', 1));
       await flushEvents();
 
-      expect(captions.committedLines, ['hello']);
+      expect(captions.committedLines, [const CaptionLine('hello')]);
       expect(captions.partialText, isEmpty);
       expect(captions.displayText, 'hello');
     });
@@ -58,7 +59,10 @@ void main() {
         engine.emit(const SpeechEvent(SpeechEventKind.partial, 'four', 1));
         await flushEvents();
 
-        expect(captions.committedLines, ['two', 'three']);
+        expect(captions.committedLines, [
+          const CaptionLine('two'),
+          const CaptionLine('three'),
+        ]);
         expect(captions.partialText, 'four');
         expect(captions.displayText, 'two\nthree\nfour');
         expect(store.saved, isEmpty);
@@ -91,7 +95,7 @@ void main() {
       engine.emit(const SpeechEvent(SpeechEventKind.error, 'stream lost', 1));
       await flushEvents();
 
-      expect(captions.committedLines, ['readable']);
+      expect(captions.committedLines, [const CaptionLine('readable')]);
       expect(captions.partialText, 'open line');
       expect(captions.displayText, 'readable\nopen line');
       expect(captions.message, 'stream lost');
@@ -272,7 +276,7 @@ void main() {
         await flushEvents();
 
         expect(engine.started, ['auto']);
-        expect(captions.committedLines, ['kept']);
+        expect(captions.committedLines, [const CaptionLine('kept')]);
         expect(captions.status, CaptionStatus.failed);
         expect(captions.message, contains('停止识别失败'));
       },
@@ -313,17 +317,20 @@ void main() {
       expect(store.value, captions.settings);
     });
 
-    test('cycleMode advances captions -> translateAll -> translateCustom', () async {
-      await captions.initialize();
+    test(
+      'cycleMode advances captions -> translateAll -> translateCustom',
+      () async {
+        await captions.initialize();
 
-      await captions.cycleMode();
-      expect(captions.settings.captionMode, CaptionMode.translateAll);
-      await captions.cycleMode();
-      expect(captions.settings.captionMode, CaptionMode.translateCustom);
-      await captions.cycleMode();
-      expect(captions.settings.captionMode, CaptionMode.captions);
-      expect(store.value, captions.settings);
-    });
+        await captions.cycleMode();
+        expect(captions.settings.captionMode, CaptionMode.translateAll);
+        await captions.cycleMode();
+        expect(captions.settings.captionMode, CaptionMode.translateCustom);
+        await captions.cycleMode();
+        expect(captions.settings.captionMode, CaptionMode.captions);
+        expect(store.value, captions.settings);
+      },
+    );
 
     test('toggleTheme flips between dark and light and persists', () async {
       await captions.initialize();
