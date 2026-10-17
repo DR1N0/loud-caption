@@ -3,7 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:loud_caption/speech/sense_voice_model_download.dart';
+import 'package:loud_caption/ui/caption_theme.dart';
 import 'package:loud_caption/ui/model_download_screen.dart';
+
+final _theme = ThemeData.dark().copyWith(
+  extensions: const [CaptionColors.dark],
+);
 
 void main() {
   testWidgets('shows download progress as events arrive', (tester) async {
@@ -12,6 +17,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: _theme,
         home: ModelDownloadScreen(
           onReady: () => onReadyCalls++,
           downloadModel: () => controller.stream,
@@ -65,6 +71,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: _theme,
         home: ModelDownloadScreen(
           onReady: () => onReadyCalls++,
           downloadModel: () {

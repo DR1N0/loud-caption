@@ -174,7 +174,8 @@ void main() {
   });
 
   testWidgets(
-    'cycling into 翻译 mode prompts to download the model, then loads it',
+    'cycling into 翻译 mode prompts to download the model, showing live '
+    'progress, then loads it',
     (tester) async {
       final fixture = _Fixture();
       await fixture.pump(tester);
@@ -186,13 +187,44 @@ void main() {
 
       await tester.tap(find.text('下载'));
       await fixture.advance(tester);
+      expect(find.text('正在下载翻译模型…'), findsOneWidget);
+
+      fixture.translation.emitLoadProgress(
+        50 * 1024 * 1024,
+        totalBytes: 100 * 1024 * 1024,
+      );
+      await fixture.advance(tester);
+      expect(find.text('50.0 MB / 100.0 MB'), findsOneWidget);
+
+      fixture.translation.completeLoad();
+      await fixture.advance(tester);
 
       expect(fixture.translation.isLoaded, isTrue);
-      expect(find.text('下载翻译模型'), findsNothing);
+      expect(find.text('正在下载翻译模型…'), findsNothing);
       expect(fixture.store.value.captionMode, CaptionMode.translateAll);
       await fixture.close(tester);
     },
   );
+
+  testWidgets('a failed translation model download returns the mode to 字幕', (
+    tester,
+  ) async {
+    final fixture = _Fixture();
+    await fixture.pump(tester);
+
+    await tester.tap(find.bySemanticsLabel('切换模式'));
+    await fixture.advance(tester);
+    await tester.tap(find.text('下载'));
+    await fixture.advance(tester);
+
+    fixture.translation.failLoad(StateError('network error'));
+    await fixture.advance(tester);
+
+    expect(fixture.translation.isLoaded, isFalse);
+    expect(fixture.store.value.captionMode, CaptionMode.captions);
+    expect(find.textContaining('翻译模型下载失败'), findsOneWidget);
+    await fixture.close(tester);
+  });
 
   testWidgets('declining the download returns the mode to 字幕', (tester) async {
     final fixture = _Fixture();

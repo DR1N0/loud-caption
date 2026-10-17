@@ -49,7 +49,7 @@ void main() {
 
       final events = await downloadAndVerify(
         DownloadSpec(
-          url: 'http://localhost:${server.port}/model.bin',
+          urls: ['http://localhost:${server.port}/model.bin'],
           destinationPath: destinationPath,
           sha256: payloadSha256,
         ),
@@ -77,7 +77,7 @@ void main() {
       await expectLater(
         downloadAndVerify(
           DownloadSpec(
-            url: 'http://localhost:${server.port}/model.bin',
+            urls: ['http://localhost:${server.port}/model.bin'],
             destinationPath: destinationPath,
             sha256: '0' * 64,
           ),
@@ -100,7 +100,7 @@ void main() {
     await expectLater(
       downloadAndVerify(
         DownloadSpec(
-          url: 'http://localhost:${server.port}/missing.bin',
+          urls: ['http://localhost:${server.port}/missing.bin'],
           destinationPath: destinationPath,
           sha256: payloadSha256,
         ),
@@ -127,7 +127,7 @@ void main() {
 
       final events = await downloadAndVerify(
         DownloadSpec(
-          url: 'http://localhost:${server.port}/model.bin',
+          urls: ['http://localhost:${server.port}/model.bin'],
           destinationPath: destinationPath,
           sha256: payloadSha256,
         ),
@@ -145,5 +145,111 @@ void main() {
 
     expect(await verifyExisting(path, payloadSha256), isTrue);
     expect(await verifyExisting(path, '0' * 64), isFalse);
+  });
+
+  group('multi-URL fallback', () {
+    test(
+      'falls back to the second URL when the first returns a non-200 response',
+      () async {
+        server.listen((request) {
+          request.response.statusCode = HttpStatus.notFound;
+          request.response.close();
+        });
+        final goodServer = await HttpServer.bind('localhost', 0);
+        addTearDown(() => goodServer.close(force: true));
+        goodServer.listen((request) {
+          request.response.statusCode = HttpStatus.ok;
+          request.response.add(payloadBytes);
+          request.response.close();
+        });
+        final destinationPath = '${tempDir.path}/model.bin';
+
+        final events = await downloadAndVerify(
+          DownloadSpec(
+            urls: [
+              'http://localhost:${server.port}/missing.bin',
+              'http://localhost:${goodServer.port}/model.bin',
+            ],
+            destinationPath: destinationPath,
+            sha256: payloadSha256,
+          ),
+        ).toList();
+
+        expect(events, isNotEmpty);
+        expect(await File(destinationPath).readAsBytes(), payloadBytes);
+        expect(await File('$destinationPath.part').exists(), isFalse);
+      },
+    );
+
+    test(
+      'falls back to the second URL when the first fails a connection entirely',
+      () async {
+        // A port nothing is listening on, so the connection itself fails
+        // (not just a bad HTTP response) — a different failure mode than
+        // the non-200 case above.
+        final deadPortServer = await HttpServer.bind('localhost', 0);
+        final deadPort = deadPortServer.port;
+        await deadPortServer.close(force: true);
+        final goodServer = await HttpServer.bind('localhost', 0);
+        addTearDown(() => goodServer.close(force: true));
+        goodServer.listen((request) {
+          request.response.statusCode = HttpStatus.ok;
+          request.response.add(payloadBytes);
+          request.response.close();
+        });
+        final destinationPath = '${tempDir.path}/model.bin';
+
+        final events = await downloadAndVerify(
+          DownloadSpec(
+            urls: [
+              'http://localhost:$deadPort/missing.bin',
+              'http://localhost:${goodServer.port}/model.bin',
+            ],
+            destinationPath: destinationPath,
+            sha256: payloadSha256,
+          ),
+        ).toList();
+
+        expect(events, isNotEmpty);
+        expect(await File(destinationPath).readAsBytes(), payloadBytes);
+      },
+    );
+
+    test('throws the last URL\'s error once every candidate has failed', () async {
+      server.listen((request) {
+        request.response.statusCode = HttpStatus.notFound;
+        request.response.close();
+      });
+      final secondServer = await HttpServer.bind('localhost', 0);
+      addTearDown(() => secondServer.close(force: true));
+      secondServer.listen((request) {
+        request.response.statusCode = HttpStatus.forbidden;
+        request.response.close();
+      });
+      final destinationPath = '${tempDir.path}/model.bin';
+
+      await expectLater(
+        downloadAndVerify(
+          DownloadSpec(
+            urls: [
+              'http://localhost:${server.port}/missing.bin',
+              'http://localhost:${secondServer.port}/forbidden.bin',
+            ],
+            destinationPath: destinationPath,
+            sha256: payloadSha256,
+          ),
+        ).drain<void>(),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('403'),
+          ),
+        ),
+      );
+
+      expect(await File(destinationPath).exists(), isFalse);
+      expect(await File('$destinationPath.part').exists(), isFalse);
+    });
   });
 }

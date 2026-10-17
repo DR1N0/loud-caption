@@ -7,7 +7,7 @@ The app uses two sherpa-onnx model files — a SenseVoice ASR model and a Silero
 | SenseVoice ASR (zh/en/ja/ko/yue, int8) | [`sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17.tar.bz2`](https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17.tar.bz2) → `model.int8.onnx` + `tokens.txt` | 163,002,883 bytes (~155 MiB / ~164 MB) | `model.int8.onnx` 239,233,841 bytes + `tokens.txt` 315,894 bytes ≈ 239,549,735 bytes (~228 MiB / ~240 MB) | `7d1efa2138a65b0b488df37f8b89e3d91a60676e416f515b952358d83dfd347e` (archive) | FunASR Model Open Source License Agreement v1.1 (weights) |
 | Silero VAD v4 | [`silero_vad.onnx`](https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx) | 643,854 bytes | 643,854 bytes | `9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6` | MIT |
 
-Authoritative source for both files: the `asr-models` release of <https://github.com/k2-fsa/sherpa-onnx>.
+Authoritative source for both files: the `asr-models` release of <https://github.com/k2-fsa/sherpa-onnx>. GitHub is unreliable from some regions (mainland China in particular), so each file also has two GitHub-release-proxy mirrors as fallbacks — `ghfast.top` and `gh-proxy.com`, both verified (matching `Content-Length`) to serve the identical release asset, not a re-packaged copy — tried in order after the primary. `lib/speech/sense_voice_model_download.dart` has the exact URLs.
 
 The SenseVoice row has two meaningfully different sizes: the `.tar.bz2` archive is compressed (~164 MB), but only `model.int8.onnx` and `tokens.txt` are extracted from it and installed — those extracted files are larger on disk (~240 MB combined) because the archive is bzip2-compressed.
 
@@ -36,6 +36,8 @@ This project is distributed as a public GitHub Release. [`THIRD_PARTY_NOTICES.md
 | Hy-MT2-1.8B (Q4_K_M) | [`Hy-MT2-1.8B-Q4_K_M.gguf`](https://huggingface.co/tencent/Hy-MT2-1.8B-GGUF/resolve/main/Hy-MT2-1.8B-Q4_K_M.gguf) | 1,133,080,448 bytes (~1.05 GiB / ~1.08 GB) | `dc5f44fcf1fa496ee7ad725982c0c8c553a4de00259b53af84c4b89fb0c06699` | Apache License 2.0 |
 
 Authoritative source: the `tencent/Hy-MT2-1.8B-GGUF` repository on Hugging Face. Downloaded on demand by `lib/translation/hy_mt2_model_download.dart` (reusing `lib/downloads/model_downloader.dart`'s same streaming-hash-then-atomic-rename pipeline as the ASR models above) the first time the user switches into a translation mode — not at first launch, since most users may never use translation.
+
+Hugging Face is likewise unreliable from mainland China, so this also falls back in order to `hf-mirror.com` (a dedicated HF mirror) and then ModelScope (`Tencent-Hunyuan/Hy-MT2-1.8B-GGUF` — Tencent's own official publish of this exact repository). Both verified as byte-identical to the Hugging Face original: matching file size, and for ModelScope, the pinned SHA-256 above confirmed directly via its API.
 
 **Why Q4_K_M and not the smaller 1.25-bit/2-bit variants.** Tencent also publishes `Hy-MT2-1.8B-1.25bit-GGUF` (~440 MB) and `Hy-MT2-1.8B-2bit-GGUF` (~573 MB), both using a custom AngelSlim "Sherry"/STQ1_0 ternary quantization. That ggml kernel is not in mainline llama.cpp — it's still an open, unmerged pull request ([ggml-org/llama.cpp#22836](https://github.com/ggml-org/llama.cpp/pull/22836)) — so no existing Flutter llama.cpp plugin can load those files. Q4_K_M is a standard ggml quantization type any such plugin's vendored llama.cpp already supports, at the cost of a larger download.
 

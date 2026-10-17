@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../speech/sense_voice_model_download.dart';
+import 'caption_theme.dart';
 import 'download_progress_bar.dart';
 
 /// Blocking first-launch gate: downloads the SenseVoice ASR + Silero VAD
@@ -48,24 +49,27 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF101114),
-    body: SafeArea(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: _error != null ? _errorView() : _progressView(),
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<CaptionColors>()!;
+    return Scaffold(
+      backgroundColor: colors.background,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: _error != null ? _errorView(colors) : _progressView(colors),
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 
-  Widget _progressView() {
+  Widget _progressView(CaptionColors colors) {
     final event = _event;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.cloud_download, color: Colors.white, size: 64),
+        Icon(Icons.cloud_download, color: colors.primaryText, size: 64),
         const SizedBox(height: 24),
         DownloadProgressBar(
           label: _phaseLabel(event?.phase),
@@ -76,16 +80,16 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
     );
   }
 
-  Widget _errorView() {
+  Widget _errorView(CaptionColors colors) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.error_outline, color: Color(0xFFFFC5C0), size: 64),
+        Icon(Icons.error_outline, color: colors.errorText, size: 64),
         const SizedBox(height: 20),
         Text(
           _error!,
           textAlign: TextAlign.center,
-          style: const TextStyle(color: Color(0xFFFFC5C0), fontSize: 16),
+          style: TextStyle(color: colors.errorText, fontSize: 16),
         ),
         const SizedBox(height: 24),
         FilledButton(

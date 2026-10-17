@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'caption_theme.dart';
+
 /// A labeled progress bar for an in-flight download, shared by the
 /// full-screen first-launch ASR model gate and the inline on-demand
 /// translation-model download.
@@ -21,6 +23,7 @@ class DownloadProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<CaptionColors>()!;
     final total = totalBytes;
     final value = total == null || total <= 0
         ? null
@@ -31,7 +34,7 @@ class DownloadProgressBar extends StatelessWidget {
         Text(
           label,
           textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.white, fontSize: 16),
+          style: TextStyle(color: colors.primaryText, fontSize: 16),
         ),
         const SizedBox(height: 12),
         LinearProgressIndicator(value: value),
@@ -40,7 +43,7 @@ class DownloadProgressBar extends StatelessWidget {
           total == null
               ? _formatBytes(receivedBytes)
               : '${_formatBytes(receivedBytes)} / ${_formatBytes(total)}',
-          style: const TextStyle(color: Color(0xFFCACDD3), fontSize: 13),
+          style: TextStyle(color: colors.dimText, fontSize: 13),
         ),
       ],
     );

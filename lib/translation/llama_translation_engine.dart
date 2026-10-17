@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:llama_flutter_android/llama_flutter_android.dart';
 
+import '../downloads/model_downloader.dart';
 import 'hy_mt2_model_download.dart';
 import 'translation_engine.dart';
 
@@ -45,20 +46,23 @@ class LlamaTranslationEngine implements TranslationEngine {
   /// engine.
   Future<void> _operations = Future<void>.value();
   bool _loaded = false;
-  Future<void>? _loading;
+  Stream<DownloadProgress>? _loading;
 
   @override
   bool get isLoaded => _loaded;
 
   @override
-  Future<void> ensureLoaded() {
-    if (_loaded) return Future<void>.value();
-    return _loading ??= _load();
+  Stream<DownloadProgress> ensureLoaded() {
+    if (_loaded) return const Stream.empty();
+    // Cached as a broadcast stream so a second concurrent `ensureLoaded()`
+    // call (e.g. a re-rendered download dialog) observes the same in-flight
+    // download rather than starting another.
+    return _loading ??= _load().asBroadcastStream();
   }
 
-  Future<void> _load() async {
+  Stream<DownloadProgress> _load() async* {
     if (!await isHyMt2ModelReady()) {
-      await downloadHyMt2Model().drain<void>();
+      yield* downloadHyMt2Model();
     }
     final modelPath = await hyMt2ModelDestinationPath();
     await _controller.loadModel(

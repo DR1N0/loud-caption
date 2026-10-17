@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:loud_caption/downloads/model_downloader.dart';
 import 'package:loud_caption/translation/translation_engine.dart';
 
 /// A controllable [TranslationEngine] double for tests, in the same spirit
@@ -8,6 +9,7 @@ import 'package:loud_caption/translation/translation_engine.dart';
 class FakeTranslationEngine implements TranslationEngine {
   bool _loaded = false;
   final List<FakeTranslationCall> calls = [];
+  StreamController<DownloadProgress>? _loadController;
 
   @override
   bool get isLoaded => _loaded;
@@ -17,7 +19,33 @@ class FakeTranslationEngine implements TranslationEngine {
   set isLoaded(bool value) => _loaded = value;
 
   @override
-  Future<void> ensureLoaded() async => _loaded = true;
+  Stream<DownloadProgress> ensureLoaded() {
+    if (_loaded) return const Stream.empty();
+    final controller = StreamController<DownloadProgress>.broadcast();
+    _loadController = controller;
+    return controller.stream;
+  }
+
+  /// Test-only hooks to drive the stream the most recent [ensureLoaded] call
+  /// returned.
+  void emitLoadProgress(int receivedBytes, {int? totalBytes}) =>
+      _loadController?.add(
+        DownloadProgress(receivedBytes: receivedBytes, totalBytes: totalBytes),
+      );
+
+  void completeLoad() {
+    _loaded = true;
+    final controller = _loadController;
+    _loadController = null;
+    unawaited(controller?.close());
+  }
+
+  void failLoad(Object error) {
+    final controller = _loadController;
+    _loadController = null;
+    controller?.addError(error);
+    unawaited(controller?.close());
+  }
 
   @override
   TranslationRequest translate({

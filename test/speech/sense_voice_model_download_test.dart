@@ -129,9 +129,9 @@ void main() {
         final base = 'http://localhost:${server.port}/';
 
         final events = await downloadSenseVoiceModel(
-          senseVoiceArchiveUrl: '${base}archive.tar.bz2',
+          senseVoiceArchiveUrls: ['${base}archive.tar.bz2'],
           senseVoiceArchiveSha256: archiveSha256,
-          sileroVadUrl: '${base}silero_vad.onnx',
+          sileroVadUrls: ['${base}silero_vad.onnx'],
           sileroVadSha256: vadSha256,
         ).toList();
 
@@ -178,8 +178,9 @@ void main() {
 
         await expectLater(
           downloadSenseVoiceModel(
-            senseVoiceArchiveUrl:
-                'http://localhost:${server.port}/archive.tar.bz2',
+            senseVoiceArchiveUrls: [
+              'http://localhost:${server.port}/archive.tar.bz2',
+            ],
             senseVoiceArchiveSha256: '0' * 64,
           ).drain<void>(),
           throwsA(isA<StateError>()),

@@ -5,13 +5,18 @@ import 'package:crypto/crypto.dart';
 
 /// Describes one file to download, verify, and atomically publish.
 class DownloadSpec {
-  const DownloadSpec({
-    required this.url,
+  DownloadSpec({
+    required this.urls,
     required this.destinationPath,
     required this.sha256,
-  });
+  }) : assert(urls.isNotEmpty, 'DownloadSpec needs at least one URL.');
 
-  final String url;
+  /// Candidate source URLs for the same byte-identical file, tried in order
+  /// until one succeeds — e.g. a primary host plus region-specific mirrors
+  /// for places (like mainland China) where the primary is unreliable. The
+  /// single pinned [sha256] below is verified against whichever one answers.
+  final List<String> urls;
+
   final String destinationPath;
 
   /// Expected SHA-256 digest of the downloaded file, as a lowercase hex
@@ -61,16 +66,17 @@ Future<bool> verifyExisting(String path, String expectedSha256) async {
   return digestSink.digest.toString() == expectedSha256;
 }
 
-/// Downloads [spec.url] to a sibling `.part` file while incrementally
-/// hashing it, verifies the result against [spec.sha256], and atomically
-/// renames it into place at [spec.destinationPath] on success.
+/// Downloads a file matching [spec.sha256] to [spec.destinationPath],
+/// trying each of [spec.urls] in order until one produces a verified file.
 ///
-/// If something goes wrong partway through — a network error, a checksum
-/// mismatch — the `.part` file is deleted and [spec.destinationPath] is
-/// never touched, so an interrupted or corrupted download can never leave a
-/// bad file at the final path; callers can simply retry. If
-/// [spec.destinationPath] already exists and verifies, completes
-/// immediately without downloading anything.
+/// Streams to a sibling `.part` file while incrementally hashing it. If a
+/// candidate URL fails — a network error, a non-200 response, a checksum
+/// mismatch — the `.part` file is deleted and the next URL is tried; only
+/// once every candidate has failed does this rethrow (the last URL's
+/// error). [spec.destinationPath] is never touched until a candidate's
+/// download verifies, so an interrupted or corrupted attempt can never
+/// leave a bad file at the final path. If [spec.destinationPath] already
+/// exists and verifies, completes immediately without downloading anything.
 Stream<DownloadProgress> downloadAndVerify(
   DownloadSpec spec, {
   HttpClient? client,
@@ -85,18 +91,59 @@ Stream<DownloadProgress> downloadAndVerify(
 
   await destination.parent.create(recursive: true);
   final partFile = File('${spec.destinationPath}.part');
+  final httpClient = client ?? (HttpClient()..connectionTimeout = const Duration(seconds: 15));
+
+  try {
+    Object? lastError;
+    for (final url in spec.urls) {
+      try {
+        // `await for` (not `yield*`) is required here: a `try`/`catch`
+        // wrapped around `yield* someStream` does NOT catch errors from
+        // that delegated stream — they bypass the catch and propagate
+        // straight to this function's own consumer. `await for` throws
+        // synchronously into this generator's control flow instead, which
+        // a surrounding `catch` does see, letting a failed URL fall
+        // through to the next candidate instead of aborting immediately.
+        await for (final progress
+            in _downloadOnce(
+              url: url,
+              partFile: partFile,
+              expectedSha256: spec.sha256,
+              httpClient: httpClient,
+            )) {
+          yield progress;
+        }
+        await partFile.rename(spec.destinationPath);
+        return;
+      } catch (error) {
+        lastError = error;
+        if (await partFile.exists()) await partFile.delete();
+      }
+    }
+    throw lastError!;
+  } finally {
+    if (client == null) httpClient.close();
+  }
+}
+
+/// One attempt against a single [url]; throws without renaming
+/// [partFile] into place on any failure, leaving cleanup to the caller so it
+/// can retry against the next candidate URL.
+Stream<DownloadProgress> _downloadOnce({
+  required String url,
+  required File partFile,
+  required String expectedSha256,
+  required HttpClient httpClient,
+}) async* {
   final sink = partFile.openWrite();
   final digestSink = _DigestSink();
   final hashSink = sha256.startChunkedConversion(digestSink);
-  final httpClient = client ?? HttpClient();
 
   try {
-    final request = await httpClient.getUrl(Uri.parse(spec.url));
+    final request = await httpClient.getUrl(Uri.parse(url));
     final response = await request.close();
     if (response.statusCode != HttpStatus.ok) {
-      throw StateError(
-        'Download failed: HTTP ${response.statusCode} for ${spec.url}',
-      );
+      throw StateError('Download failed: HTTP ${response.statusCode} for $url');
     }
     final totalBytes = response.contentLength >= 0
         ? response.contentLength
@@ -117,17 +164,13 @@ Stream<DownloadProgress> downloadAndVerify(
     await sink.close();
     hashSink.close();
     final actual = digestSink.digest.toString();
-    if (actual != spec.sha256) {
+    if (actual != expectedSha256) {
       throw StateError(
-        'Checksum mismatch for ${spec.url}: expected ${spec.sha256}, got $actual',
+        'Checksum mismatch for $url: expected $expectedSha256, got $actual',
       );
     }
-    await partFile.rename(spec.destinationPath);
   } catch (_) {
     await sink.close().catchError((_) {});
-    if (await partFile.exists()) await partFile.delete();
     rethrow;
-  } finally {
-    if (client == null) httpClient.close();
   }
 }

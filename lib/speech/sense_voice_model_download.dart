@@ -21,6 +21,23 @@ const _sileroVadFileName = 'silero_vad.onnx';
 const _sileroVadSha256 =
     '9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6';
 
+// GitHub Releases is unreliable from mainland China, so each file also has
+// two GitHub-release-proxy mirrors as fallbacks — both verified (via a HEAD
+// request matching the pinned size above) to serve the exact same bytes as
+// the original, not a re-packaged copy, so the single pinned SHA-256 per
+// file applies to every mirror. Proxy availability is known to churn, hence
+// two independent ones rather than just one.
+const _senseVoiceArchiveUrls = [
+  '$_senseVoiceBaseUrl$_senseVoiceArchiveName',
+  'https://ghfast.top/$_senseVoiceBaseUrl$_senseVoiceArchiveName',
+  'https://gh-proxy.com/$_senseVoiceBaseUrl$_senseVoiceArchiveName',
+];
+const _sileroVadUrls = [
+  '$_senseVoiceBaseUrl$_sileroVadFileName',
+  'https://ghfast.top/$_senseVoiceBaseUrl$_sileroVadFileName',
+  'https://gh-proxy.com/$_senseVoiceBaseUrl$_sileroVadFileName',
+];
+
 /// Which step of [downloadSenseVoiceModel] is in progress.
 enum ModelDownloadPhase { downloadingAsr, extracting, downloadingVad }
 
@@ -64,14 +81,15 @@ Future<bool> isSenseVoiceModelReady() async {
 /// each step re-checks whether its own output already exists and verifies
 /// before re-downloading.
 ///
-/// [senseVoiceArchiveUrl]/[senseVoiceArchiveSha256] and
-/// [sileroVadUrl]/[sileroVadSha256] default to the real pinned sources and
-/// exist as parameters only so tests can point this at a local fixture
-/// server instead — production call sites should never need to pass them.
+/// [senseVoiceArchiveUrls]/[senseVoiceArchiveSha256] and
+/// [sileroVadUrls]/[sileroVadSha256] default to the real pinned sources (a
+/// primary plus mirrors — see the fallback note above) and exist as
+/// parameters only so tests can point this at a local fixture server
+/// instead — production call sites should never need to pass them.
 Stream<ModelDownloadEvent> downloadSenseVoiceModel({
-  String senseVoiceArchiveUrl = _senseVoiceBaseUrl + _senseVoiceArchiveName,
+  List<String> senseVoiceArchiveUrls = _senseVoiceArchiveUrls,
   String senseVoiceArchiveSha256 = _senseVoiceArchiveSha256,
-  String sileroVadUrl = _senseVoiceBaseUrl + _sileroVadFileName,
+  List<String> sileroVadUrls = _sileroVadUrls,
   String sileroVadSha256 = _sileroVadSha256,
 }) async* {
   final destinationPaths = await senseVoiceModelDestinationPaths();
@@ -82,7 +100,7 @@ Stream<ModelDownloadEvent> downloadSenseVoiceModel({
   await for (final progress
       in downloadAndVerify(
         DownloadSpec(
-          url: senseVoiceArchiveUrl,
+          urls: senseVoiceArchiveUrls,
           destinationPath: archivePath,
           sha256: senseVoiceArchiveSha256,
         ),
@@ -112,7 +130,7 @@ Stream<ModelDownloadEvent> downloadSenseVoiceModel({
   await for (final progress
       in downloadAndVerify(
         DownloadSpec(
-          url: sileroVadUrl,
+          urls: sileroVadUrls,
           destinationPath: destinationPaths.sileroVadModel,
           sha256: sileroVadSha256,
         ),

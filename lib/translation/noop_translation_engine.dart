@@ -1,3 +1,4 @@
+import '../downloads/model_downloader.dart';
 import 'translation_engine.dart';
 
 /// Phase 2 placeholder: reports as never loaded and passes text through
@@ -9,7 +10,7 @@ class NoopTranslationEngine implements TranslationEngine {
   bool get isLoaded => false;
 
   @override
-  Future<void> ensureLoaded() async {}
+  Stream<DownloadProgress> ensureLoaded() => const Stream.empty();
 
   @override
   TranslationRequest translate({

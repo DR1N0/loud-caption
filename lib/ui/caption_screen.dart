@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../captions/caption_controller.dart';
+import '../downloads/model_downloader.dart';
 import '../lifecycle/caption_lifecycle_coordinator.dart';
 import '../permissions/microphone_access.dart';
 import '../settings/app_settings.dart';
 import 'caption_theme.dart';
+import 'download_progress_bar.dart';
 
 /// Full-screen captions; recording policy belongs to the app coordinator.
 class CaptionScreen extends StatefulWidget {
@@ -106,28 +108,41 @@ class _CaptionScreenState extends State<CaptionScreen> {
       return;
     }
 
-    showDialog<void>(
+    final progress = ValueNotifier<DownloadProgress?>(null);
+    Object? loadError;
+    unawaited(
+      () async {
+        try {
+          await for (final event in engine.ensureLoaded()) {
+            progress.value = event;
+          }
+        } catch (error) {
+          loadError = error;
+        } finally {
+          if (mounted) Navigator.of(context, rootNavigator: true).pop();
+        }
+      }(),
+    );
+
+    await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 20),
-            Expanded(child: Text('正在下载翻译模型…')),
-          ],
+      builder: (_) => AlertDialog(
+        content: ValueListenableBuilder<DownloadProgress?>(
+          valueListenable: progress,
+          builder: (context, value, _) => DownloadProgressBar(
+            label: '正在下载翻译模型…',
+            receivedBytes: value?.receivedBytes ?? 0,
+            totalBytes: value?.totalBytes,
+          ),
         ),
       ),
     );
-    try {
-      await engine.ensureLoaded();
-    } catch (error) {
-      if (mounted) {
-        setState(() => _actionError = '翻译模型下载失败: $error');
-        await widget.coordinator.setCaptionMode(CaptionMode.captions);
-      }
-    } finally {
-      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    progress.dispose();
+    if (!mounted) return;
+    if (loadError != null) {
+      setState(() => _actionError = '翻译模型下载失败: $loadError');
+      await widget.coordinator.setCaptionMode(CaptionMode.captions);
     }
   }
 

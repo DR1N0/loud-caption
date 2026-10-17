@@ -6,7 +6,7 @@ void main() {
     final engine = NoopTranslationEngine();
 
     expect(engine.isLoaded, isFalse);
-    await engine.ensureLoaded();
+    expect(await engine.ensureLoaded().toList(), isEmpty);
     expect(engine.isLoaded, isFalse);
   });
 
