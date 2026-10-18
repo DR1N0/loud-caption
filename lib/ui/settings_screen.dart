@@ -11,7 +11,7 @@ const Map<String, String> _languageNames = {
 };
 
 /// Lets the user configure where translated captions go: one fixed target
-/// for 翻译 mode, and a per-source-language routing table for 自定义翻译.
+/// for 翻译 mode, and a per-source-language routing table for 互译.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key, required this.controller});
 
@@ -93,7 +93,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: Text(
-              '自定义翻译：按来源语言设置目标',
+              '互译：按来源语言设置目标',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),

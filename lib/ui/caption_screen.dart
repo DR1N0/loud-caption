@@ -46,7 +46,7 @@ class _CaptionScreenState extends State<CaptionScreen> {
     _setSystemUiMode(SystemUiMode.immersiveSticky);
     // The persisted caption mode survives an app restart, but the
     // translation engine's `isLoaded` does not — without this, reopening the
-    // app already in 翻译/自定义翻译 mode would silently never load the
+    // app already in 翻译/互译 mode would silently never load the
     // model (and so never translate) until the user manually cycled the
     // mode. `showDialog` below needs a BuildContext attached to a built
     // Navigator, hence the post-frame callback.
@@ -413,7 +413,7 @@ class _CaptionScreenState extends State<CaptionScreen> {
   String _modeLabel(CaptionMode mode) => switch (mode) {
     CaptionMode.captions => '字幕',
     CaptionMode.translateAll => '翻译',
-    CaptionMode.translateCustom => '自定义',
+    CaptionMode.translateCustom => '互译',
   };
 
   /// In the landscape side rail, the bar is rotated in place rather than

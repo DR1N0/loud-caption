@@ -171,7 +171,7 @@ void main() {
       expect(translation.calls, isEmpty);
     });
 
-    test('自定义翻译 mode routes per detected source language', () async {
+    test('互译 mode routes per detected source language', () async {
       await inCaptionsMode();
       await captions.cycleMode(); // -> translateAll
       await captions.cycleMode(); // -> translateCustom
