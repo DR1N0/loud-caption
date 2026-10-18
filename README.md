@@ -8,10 +8,11 @@ This is a personal, side-loaded project distributed through [GitHub Releases](ht
 
 ## Features
 
-- Full-screen, high-contrast live captions with adjustable font size
-- Offline Chinese/English speech recognition with automatic language detection — no manual switching needed
+- Full-screen, high-contrast live captions with adjustable font size (16–80px) and automatic scrolling that keeps the latest line in view, pausing if you scroll up to re-read older ones
+- Offline Chinese/English/Japanese/Korean/Cantonese speech recognition with automatic language detection — no manual switching needed
+- On-device translation (Hy-MT2-1.8B via llama.cpp, never cloud-based) into one configured target language, or per-source-language routing — Cantonese routes exactly like Mandarin, since it transcribes to the same written text
 - Orientation lock; the control bar adapts between a single row (portrait) and a side rail (landscape) so captions keep most of the screen
-- No audio or caption history is stored; only your font size and orientation preferences persist
+- No audio or caption history is stored; only your display and translation preferences (font size, orientation, theme, translation mode/targets) persist
 - Recognition keeps running through rotation, font changes, and the in-app Settings screen; it only stops when the app is truly backgrounded, the screen locks, or you leave for system Settings
 
 See [`docs/model-sources.md`](docs/model-sources.md) and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for what's bundled and under what license, and [`docs/superpowers/specs/`](docs/superpowers/specs/) for the full design history.
@@ -63,6 +64,10 @@ The tradeoff: because the key is public, anyone with this repo can produce an AP
 
 ### Status
 
-This app migrated its speech engine from Vosk to sherpa-onnx (SenseVoice ASR + Silero VAD). Further testing showed SenseVoice's automatic language detection ("auto" mode) is accurate enough on its own — no observed Chinese-misheard-as-English cases — that the manual language-switching UI (Settings screen language list, caption-screen language toggle) was removed. ASR models are now downloaded on first launch rather than bundled in the APK, and the Settings screen has since been re-added to configure on-device translation. One phone has run the sherpa-onnx engine in auto mode with stable, accurate real-time Chinese/English captions, but a dedicated real-device smoke test of the current build is still outstanding. Foreground-resume behavior, caption accuracy across devices, and device-specific battery/thermal/accessibility behavior have not been independently verified.
+This app migrated its speech engine from Vosk to sherpa-onnx (SenseVoice ASR + Silero VAD). SenseVoice's automatic language detection ("auto" mode) has proven accurate enough on its own — no observed Chinese-misheard-as-English cases — that the manual language-switching UI was removed. ASR models are downloaded on first launch rather than bundled in the APK, and both the ASR and translation model downloads resume from where they left off if interrupted, falling back to mainland-China-friendly mirrors (GitHub proxies, ModelScope, hf-mirror.com) alongside their primary sources.
 
-On-device translation (Hy-MT2-1.8B via llama.cpp, never cloud-based) is now wired into the live caption pipeline: committed lines are translated per the configured mode, with a speculative partial-text translation kept running for a pseudo-streaming feel until the authoritative final text supersedes it. This has been verified with the full automated test suite and on an Android emulator, but an actual on-device translation call has not yet been verified on real hardware — the ~1.08 GB model download could not be exercised in this development environment (see `docs/model-sources.md`). Downloadable language packs, cloud sync, caption history, and iOS remain intentionally out of scope.
+On-device translation (Hy-MT2-1.8B via llama.cpp, never cloud-based) is wired into the live caption pipeline and has now been verified end-to-end on a real device across dozens of translations in both 翻译 and 自定义翻译 modes. Only committed (final) caption lines are translated — an earlier speculative partial-text translation was removed after real-device testing showed on-device inference latency couldn't keep up with live speech.
+
+Real-device testing surfaced two bugs in the third-party `llama_flutter_android` plugin this app depends on for translation: a native crash in llama.cpp's own RMSNorm kernel (incidentally resolved by removing the partial-translation trigger above, which eliminated the cancel-then-regenerate race that triggered it) and a streaming bug that garbled CJK output by mishandling multi-byte UTF-8 characters split across token boundaries. Both are fixed and verified; the second is filed upstream as [dragneel2074/Llama-Flutter#2](https://github.com/dragneel2074/Llama-Flutter/pull/2), and until it merges this app depends on a fork with the fix (see `pubspec.yaml`).
+
+Foreground-resume behavior, battery/thermal impact of running ASR and translation together, and caption/translation accuracy across different devices and accents remain unverified beyond the single device this has been tested on. Downloadable language packs, cloud sync, caption history, and iOS remain intentionally out of scope.
