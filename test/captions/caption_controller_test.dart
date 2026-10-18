@@ -47,24 +47,27 @@ void main() {
     });
 
     test(
-      'only the latest two completed lines stay in ephemeral state',
+      'completed lines keep accumulating — how many are shown is the UI\'s '
+      'call, not a fixed controller-level limit',
       () async {
         await captions.initialize();
         await captions.start();
 
-        for (final text in ['one', 'two', 'three']) {
+        for (final text in ['one', 'two', 'three', 'four', 'five']) {
           engine.emit(SpeechEvent(SpeechEventKind.finalText, text, 1));
           await flushEvents();
         }
-        engine.emit(const SpeechEvent(SpeechEventKind.partial, 'four', 1));
+        engine.emit(const SpeechEvent(SpeechEventKind.partial, 'six', 1));
         await flushEvents();
 
         expect(captions.committedLines, [
+          const CaptionLine('one'),
           const CaptionLine('two'),
           const CaptionLine('three'),
+          const CaptionLine('four'),
+          const CaptionLine('five'),
         ]);
-        expect(captions.partialText, 'four');
-        expect(captions.displayText, 'two\nthree\nfour');
+        expect(captions.partialText, 'six');
         expect(store.saved, isEmpty);
       },
     );

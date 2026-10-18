@@ -23,6 +23,12 @@ void main() {
     expect(settings.withLandscape(true).landscape, isTrue);
   });
 
+  test('font size supports a smaller floor than the original presets', () {
+    final settings = CaptionSettings();
+
+    expect(settings.withFontSize(14).fontSize, 16.0);
+  });
+
   test('fresh settings default to captions mode and a self-routing table', () {
     final settings = CaptionSettings();
 

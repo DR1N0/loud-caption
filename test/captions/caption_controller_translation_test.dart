@@ -112,21 +112,47 @@ void main() {
       expect(captions.committedLines.single.translation, isNull);
     });
 
-    test('an unrecognized language (Cantonese) is never translated', () async {
-      await inTranslateAllMode('en');
+    test(
+      'Cantonese routes for translation exactly like Mandarin Chinese — '
+      'they transcribe to the same written text',
+      () async {
+        await inTranslateAllMode('en');
 
-      engine.emit(
-        const SpeechEvent(
-          SpeechEventKind.finalText,
-          '你好',
-          1,
-          detectedLanguage: 'yue',
-        ),
-      );
-      await flushEvents();
+        engine.emit(
+          const SpeechEvent(
+            SpeechEventKind.finalText,
+            '你好',
+            1,
+            detectedLanguage: 'yue',
+          ),
+        );
+        await flushEvents();
 
-      expect(translation.calls, isEmpty);
-    });
+        expect(translation.calls, hasLength(1));
+        expect(translation.calls.single.sourceLang, 'zh');
+        expect(translation.calls.single.targetLang, 'en');
+      },
+    );
+
+    test(
+      'Cantonese is skipped exactly when Chinese would be — e.g. it already '
+      'maps to itself under 翻译模式',
+      () async {
+        await inTranslateAllMode('zh');
+
+        engine.emit(
+          const SpeechEvent(
+            SpeechEventKind.finalText,
+            '你好',
+            1,
+            detectedLanguage: 'yue',
+          ),
+        );
+        await flushEvents();
+
+        expect(translation.calls, isEmpty);
+      },
+    );
 
     test('nothing is translated before the engine finishes loading', () async {
       translation.isLoaded = false;

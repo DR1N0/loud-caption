@@ -95,6 +95,78 @@ void main() {
     },
   );
 
+  testWidgets(
+    'committing enough lines to overflow the viewport auto-scrolls so the '
+    'latest one is visible without a manual scroll',
+    (tester) async {
+      final fixture = _Fixture();
+      await fixture.pump(tester);
+      final session = fixture.engine.activeSessionId!;
+
+      for (var i = 0; i < 10; i++) {
+        fixture.engine.emit(
+          SpeechEvent(SpeechEventKind.finalText, 'caption line $i', session),
+        );
+        await fixture.advance(tester);
+      }
+
+      final position = tester.state<ScrollableState>(
+        find.byType(Scrollable),
+      ).position;
+      expect(position.maxScrollExtent, greaterThan(0));
+      expect(position.pixels, closeTo(position.maxScrollExtent, 1.0));
+      await fixture.close(tester);
+    },
+  );
+
+  testWidgets(
+    'scrolling away from the bottom to re-read older lines pauses '
+    'auto-scroll until scrolling back near the bottom',
+    (tester) async {
+      final fixture = _Fixture();
+      await fixture.pump(tester);
+      final session = fixture.engine.activeSessionId!;
+
+      for (var i = 0; i < 10; i++) {
+        fixture.engine.emit(
+          SpeechEvent(SpeechEventKind.finalText, 'caption line $i', session),
+        );
+        await fixture.advance(tester);
+      }
+
+      final position = tester.state<ScrollableState>(
+        find.byType(Scrollable),
+      ).position;
+
+      // Drag far enough to guarantee landing away from the bottom,
+      // regardless of exact content height.
+      await tester.drag(find.byType(Scrollable), const Offset(0, 10000));
+      await fixture.advance(tester);
+      final scrolledAwayPixels = position.pixels;
+      expect(scrolledAwayPixels, lessThan(position.maxScrollExtent - 24));
+
+      // A new line arrives while the user is reading history — the view
+      // must not be yanked back down to the bottom.
+      fixture.engine.emit(
+        SpeechEvent(SpeechEventKind.finalText, 'new line', session),
+      );
+      await fixture.advance(tester);
+      expect(position.pixels, closeTo(scrolledAwayPixels, 1.0));
+
+      // Scrolling back near the bottom resumes auto-scroll for the next
+      // new line.
+      await tester.drag(find.byType(Scrollable), const Offset(0, -10000));
+      await fixture.advance(tester);
+      fixture.engine.emit(
+        SpeechEvent(SpeechEventKind.finalText, 'another line', session),
+      );
+      await fixture.advance(tester);
+      expect(position.pixels, closeTo(position.maxScrollExtent, 1.0));
+
+      await fixture.close(tester);
+    },
+  );
+
   testWidgets('landscape rotates the control bar into a side rail, '
       'reversed top-to-bottom', (tester) async {
     tester.view.physicalSize = const Size(2400, 1080);
@@ -225,6 +297,25 @@ void main() {
 
       expect(fixture.translation.isLoaded, isTrue);
       expect(fixture.store.value.captionMode, CaptionMode.translateAll);
+      await fixture.close(tester);
+    },
+  );
+
+  testWidgets(
+    'a translation mode already active from a previous session loads the '
+    'engine on startup, without requiring the user to cycle the mode again',
+    (tester) async {
+      final fixture = _Fixture();
+      fixture.store.value = fixture.store.value
+          .withCaptionMode(CaptionMode.translateAll)
+          .withTranslateAllTarget('en');
+      await fixture.pump(tester);
+
+      expect(find.text('正在加载翻译模型…'), findsOneWidget);
+      fixture.translation.completeLoad();
+      await fixture.advance(tester);
+
+      expect(fixture.translation.isLoaded, isTrue);
       await fixture.close(tester);
     },
   );

@@ -57,7 +57,7 @@ class CaptionSettings {
     this._themeMode,
   );
 
-  static const List<double> fontSizePresets = [32, 48, 64, 80];
+  static const List<double> fontSizePresets = [16, 20, 24, 32, 48, 64, 80];
 
   final double _fontSize;
   final bool _landscape;

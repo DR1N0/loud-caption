@@ -30,6 +30,13 @@ class CaptionScreen extends StatefulWidget {
 
 class _CaptionScreenState extends State<CaptionScreen> {
   String? _actionError;
+  final _scrollController = ScrollController();
+
+  /// Whether the caption view should auto-scroll new content into view.
+  /// Paused while the user has manually scrolled away from the bottom (e.g.
+  /// to re-read an older line), resumed once they scroll back near it — see
+  /// the `NotificationListener` in [_captionBody].
+  bool _stickToBottom = true;
 
   @override
   void initState() {
@@ -37,10 +44,27 @@ class _CaptionScreenState extends State<CaptionScreen> {
     widget.controller.addListener(_onChanged);
     widget.coordinator.addListener(_onChanged);
     _setSystemUiMode(SystemUiMode.immersiveSticky);
+    // The persisted caption mode survives an app restart, but the
+    // translation engine's `isLoaded` does not — without this, reopening the
+    // app already in 翻译/自定义翻译 mode would silently never load the
+    // model (and so never translate) until the user manually cycled the
+    // mode. `showDialog` below needs a BuildContext attached to a built
+    // Navigator, hence the post-frame callback.
+    if (widget.controller.settings.captionMode != CaptionMode.captions) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_ensureTranslationEngineLoaded());
+      });
+    }
   }
 
   void _onChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_stickToBottom && _scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
   }
 
   void _setSystemUiMode(SystemUiMode mode) {
@@ -78,7 +102,14 @@ class _CaptionScreenState extends State<CaptionScreen> {
     }
     if (mounted && _actionError != null) setState(() => _actionError = null);
     if (!mounted) return;
+    await _ensureTranslationEngineLoaded();
+  }
 
+  /// Confirms (if needed) and drives loading the translation engine for
+  /// whichever translation mode is currently active — called both right
+  /// after the user cycles into a translation mode, and on app startup if
+  /// a translation mode was already active from a previous session.
+  Future<void> _ensureTranslationEngineLoaded() async {
     final engine = widget.controller.translationEngine;
     final mode = widget.controller.settings.captionMode;
     if (mode == CaptionMode.captions || engine == null || engine.isLoaded) {
@@ -171,6 +202,7 @@ class _CaptionScreenState extends State<CaptionScreen> {
   void dispose() {
     widget.controller.removeListener(_onChanged);
     widget.coordinator.removeListener(_onChanged);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -246,47 +278,84 @@ class _CaptionScreenState extends State<CaptionScreen> {
     return Column(children: [body, _controls(vertical: false)]);
   }
 
+  static const _captionBodyVerticalPadding = 16.0;
+
   Widget _captionBody(CaptionController controller) {
     final colors = _colors(context);
     return Column(
       children: [
         _status(controller),
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Semantics(
-              liveRegion: true,
-              label: '实时字幕',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (final line in controller.committedLines)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Column(
-                        children: [
-                          _captionText(
-                            line.original,
-                            controller.settings.fontSize,
-                            colors.primaryText,
-                          ),
-                          if (line.translation != null)
-                            _captionText(
-                              line.translation!,
-                              controller.settings.fontSize,
-                              colors.dimText,
+          child: LayoutBuilder(
+            builder: (context, constraints) => NotificationListener<ScrollNotification>(
+              // Only a real user drag (or the fling it ends with) should
+              // pause/resume sticky-bottom auto-scroll — our own
+              // programmatic jumpTo() in _onChanged also emits scroll
+              // notifications, but those carry no dragDetails.
+              onNotification: (notification) {
+                final isUserDriven =
+                    (notification is ScrollUpdateNotification &&
+                        notification.dragDetails != null) ||
+                    notification is ScrollEndNotification;
+                if (isUserDriven) {
+                  final metrics = notification.metrics;
+                  _stickToBottom =
+                      metrics.maxScrollExtent - metrics.pixels <= 24.0;
+                }
+                return false;
+              },
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: _captionBodyVerticalPadding,
+                ),
+                child: ConstrainedBox(
+                  // Pushes short content to the bottom of the viewport
+                  // instead of floating centered with wasted space all
+                  // around, while still letting longer content grow past
+                  // the viewport height and scroll normally.
+                  constraints: BoxConstraints(
+                    minHeight:
+                        constraints.maxHeight -
+                        2 * _captionBodyVerticalPadding,
+                  ),
+                  child: Semantics(
+                    liveRegion: true,
+                    label: '实时字幕',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        for (final line in controller.committedLines)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Column(
+                              children: [
+                                _captionText(
+                                  line.original,
+                                  controller.settings.fontSize,
+                                  colors.primaryText,
+                                ),
+                                if (line.translation != null)
+                                  _captionText(
+                                    line.translation!,
+                                    controller.settings.fontSize,
+                                    colors.dimText,
+                                  ),
+                              ],
                             ),
-                        ],
-                      ),
+                          ),
+                        if (controller.partialText.isNotEmpty)
+                          _captionText(
+                            controller.partialText,
+                            controller.settings.fontSize,
+                            colors.dimText,
+                          ),
+                      ],
                     ),
-                  if (controller.partialText.isNotEmpty)
-                    _captionText(
-                      controller.partialText,
-                      controller.settings.fontSize,
-                      colors.dimText,
-                    ),
-                ],
+                  ),
+                ),
               ),
             ),
           ),

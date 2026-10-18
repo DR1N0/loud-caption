@@ -35,6 +35,8 @@ class CaptionController extends ChangeNotifier {
     Duration(seconds: 2),
   ];
 
+  static const int _maxCommittedLinesSafetyNet = 50;
+
   final SpeechEngine _engine;
   final SettingsStore _settingsStore;
   final TranslationEngine? _translationEngine;
@@ -328,7 +330,13 @@ class CaptionController extends ChangeNotifier {
         if (event.text.isNotEmpty) {
           final line = CaptionLine(event.text);
           _committedLines.add(line);
-          if (_committedLines.length > 2) _committedLines.removeAt(0);
+          // A safety net against unbounded memory growth over a long
+          // session, not a visibility limit — how much history is actually
+          // shown on screen is the UI's call (see CaptionScreen), based on
+          // available space and font size.
+          if (_committedLines.length > _maxCommittedLinesSafetyNet) {
+            _committedLines.removeAt(0);
+          }
           _notify();
           _startFinalTranslation(line, event.detectedLanguage);
         } else {
@@ -344,22 +352,32 @@ class CaptionController extends ChangeNotifier {
     }
   }
 
+  /// Cantonese (`yue`) transcribes to effectively the same written Chinese
+  /// text as Mandarin — SenseVoice's own 5 recognized languages are
+  /// zh/en/ja/ko/yue, and `yue` has no `translationLanguages` entry of its
+  /// own — so it's routed exactly like `zh` for translation purposes rather
+  /// than being permanently skipped. This only affects routing; the
+  /// originally recognized text is still displayed unchanged.
+  String? _translationRoutingLanguage(String? detectedLanguage) =>
+      detectedLanguage == 'yue' ? 'zh' : detectedLanguage;
+
   /// Resolves the target language [detectedLanguage] should be translated
   /// into under the current mode, or `null` if it shouldn't be translated at
   /// all — translation is off, the engine isn't ready, the language is
-  /// unrecognized/Cantonese (never routed), or it already maps to itself.
+  /// unrecognized, or it already maps to itself.
   String? _resolveTranslationTarget(String? detectedLanguage) {
     final engine = _translationEngine;
     if (engine == null || !engine.isLoaded) return null;
     if (_settings.captionMode == CaptionMode.captions) return null;
-    if (detectedLanguage == null ||
-        !translationLanguages.contains(detectedLanguage)) {
+    final routingLanguage = _translationRoutingLanguage(detectedLanguage);
+    if (routingLanguage == null ||
+        !translationLanguages.contains(routingLanguage)) {
       return null;
     }
     final target = _settings.captionMode == CaptionMode.translateAll
         ? _settings.translateAllTarget
-        : _settings.routingTargetFor(detectedLanguage);
-    return target == detectedLanguage ? null : target;
+        : _settings.routingTargetFor(routingLanguage);
+    return target == routingLanguage ? null : target;
   }
 
   /// Translates a freshly committed line. Partial (uncommitted) text is
@@ -376,7 +394,7 @@ class CaptionController extends ChangeNotifier {
 
     final request = _translationEngine!.translate(
       text: originalLine.original,
-      sourceLang: detectedLanguage!,
+      sourceLang: _translationRoutingLanguage(detectedLanguage)!,
       targetLang: target,
     );
     var currentLine = originalLine;
