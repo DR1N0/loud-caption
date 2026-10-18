@@ -10,6 +10,9 @@ class NoopTranslationEngine implements TranslationEngine {
   bool get isLoaded => false;
 
   @override
+  Future<bool> isModelDownloaded() async => true;
+
+  @override
   Stream<DownloadProgress> ensureLoaded() => const Stream.empty();
 
   @override

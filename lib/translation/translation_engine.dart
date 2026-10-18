@@ -22,6 +22,15 @@ abstract interface class TranslationEngine {
 
   bool get isLoaded;
 
+  /// Whether the model file is already present on disk from a previous
+  /// session. `false` means [ensureLoaded] will actually download
+  /// (potentially large, minutes-long); `true` means it only needs to load
+  /// an already-downloaded file into memory (seconds). Lets the UI show a
+  /// "confirm download" prompt only when a real download is about to
+  /// happen, rather than every time the process restarts and [isLoaded]
+  /// resets to `false`.
+  Future<bool> isModelDownloaded();
+
   TranslationRequest translate({
     required String text,
     required String sourceLang,

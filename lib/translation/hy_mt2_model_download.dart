@@ -17,15 +17,17 @@ const _hyMt2FileName = 'Hy-MT2-1.8B-Q4_K_M.gguf';
 const _hyMt2Sha256 =
     'dc5f44fcf1fa496ee7ad725982c0c8c553a4de00259b53af84c4b89fb0c06699';
 
-// Hugging Face is unreliable from mainland China, so this also tries
-// hf-mirror.com (a dedicated HF mirror) and ModelScope (Tencent's own
-// official publish of this exact repository) as fallbacks. Both verified —
+// Hugging Face itself is unreliable from mainland China — observed firsthand
+// as a ~10s stall before falling back — so ModelScope (Tencent's own
+// official publish of this exact repository, hosted in mainland China) is
+// tried first, then hf-mirror.com (a dedicated HF mirror) as a second
+// fallback, with the original Hugging Face URL last. All three verified —
 // matching size and, for ModelScope, the pinned SHA-256 directly via its
 // API — to be the identical file, not a re-packaged copy.
 const _hyMt2Urls = [
-  '$_hyMt2BaseUrl$_hyMt2FileName',
-  'https://hf-mirror.com/tencent/Hy-MT2-1.8B-GGUF/resolve/main/$_hyMt2FileName',
   'https://modelscope.cn/models/Tencent-Hunyuan/Hy-MT2-1.8B-GGUF/resolve/master/$_hyMt2FileName',
+  'https://hf-mirror.com/tencent/Hy-MT2-1.8B-GGUF/resolve/main/$_hyMt2FileName',
+  '$_hyMt2BaseUrl$_hyMt2FileName',
 ];
 
 /// Computes the fixed destination path for the Hy-MT2 GGUF file, without

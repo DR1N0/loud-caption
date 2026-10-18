@@ -52,6 +52,9 @@ class LlamaTranslationEngine implements TranslationEngine {
   bool get isLoaded => _loaded;
 
   @override
+  Future<bool> isModelDownloaded() => isHyMt2ModelReady();
+
+  @override
   Stream<DownloadProgress> ensureLoaded() {
     if (_loaded) return const Stream.empty();
     // Cached as a broadcast stream so a second concurrent `ensureLoaded()`
@@ -91,9 +94,13 @@ class LlamaTranslationEngine implements TranslationEngine {
         await for (final token in _controller.generate(
           prompt: prompt,
           maxTokens: _maxTranslationTokens,
-          temperature: 0.7,
-          topP: 0.6,
-          topK: 20,
+          // Low temperature: translation should be faithful/deterministic,
+          // not creative. 0.7 (a reasonable default for open-ended chat) let
+          // the very first on-device call produce an off-task response that
+          // echoed the instruction instead of translating it.
+          temperature: 0.2,
+          topP: 0.9,
+          topK: 40,
           repeatPenalty: 1.05,
         )) {
           if (cancelled) break;

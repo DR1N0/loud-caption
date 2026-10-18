@@ -178,6 +178,7 @@ void main() {
     'progress, then loads it',
     (tester) async {
       final fixture = _Fixture();
+      fixture.translation.modelDownloaded = false;
       await fixture.pump(tester);
 
       await tester.tap(find.bySemanticsLabel('切换模式'));
@@ -206,10 +207,33 @@ void main() {
     },
   );
 
+  testWidgets(
+    'cycling into 翻译 mode skips the confirm dialog when the model file is '
+    'already on disk from a previous session — isLoaded resets every '
+    'process start, but the download does not need to happen again',
+    (tester) async {
+      final fixture = _Fixture();
+      await fixture.pump(tester);
+
+      await tester.tap(find.bySemanticsLabel('切换模式'));
+      await fixture.advance(tester);
+      expect(find.text('下载翻译模型'), findsNothing);
+      expect(find.text('正在加载翻译模型…'), findsOneWidget);
+
+      fixture.translation.completeLoad();
+      await fixture.advance(tester);
+
+      expect(fixture.translation.isLoaded, isTrue);
+      expect(fixture.store.value.captionMode, CaptionMode.translateAll);
+      await fixture.close(tester);
+    },
+  );
+
   testWidgets('a failed translation model download returns the mode to 字幕', (
     tester,
   ) async {
     final fixture = _Fixture();
+    fixture.translation.modelDownloaded = false;
     await fixture.pump(tester);
 
     await tester.tap(find.bySemanticsLabel('切换模式'));
@@ -228,6 +252,7 @@ void main() {
 
   testWidgets('declining the download returns the mode to 字幕', (tester) async {
     final fixture = _Fixture();
+    fixture.translation.modelDownloaded = false;
     await fixture.pump(tester);
 
     await tester.tap(find.bySemanticsLabel('切换模式'));

@@ -252,4 +252,68 @@ void main() {
       expect(await File('$destinationPath.part').exists(), isFalse);
     });
   });
+
+  group('resuming an interrupted download', () {
+    test(
+      'resumes from a leftover .part file via a Range request when the '
+      'server supports it',
+      () async {
+        final destinationPath = '${tempDir.path}/model.bin';
+        final splitPoint = 10;
+        await File(
+          '$destinationPath.part',
+        ).writeAsBytes(payloadBytes.sublist(0, splitPoint));
+
+        String? receivedRangeHeader;
+        server.listen((request) {
+          receivedRangeHeader = request.headers.value('range');
+          final remaining = payloadBytes.sublist(splitPoint);
+          request.response.statusCode = HttpStatus.partialContent;
+          request.response.add(remaining);
+          request.response.close();
+        });
+
+        final events = await downloadAndVerify(
+          DownloadSpec(
+            urls: ['http://localhost:${server.port}/model.bin'],
+            destinationPath: destinationPath,
+            sha256: payloadSha256,
+          ),
+        ).toList();
+
+        expect(receivedRangeHeader, 'bytes=$splitPoint-');
+        expect(events.first.receivedBytes, splitPoint);
+        expect(await File(destinationPath).readAsBytes(), payloadBytes);
+        expect(await File('$destinationPath.part').exists(), isFalse);
+      },
+    );
+
+    test(
+      'falls back to a clean full download when the server ignores the '
+      'Range request',
+      () async {
+        final destinationPath = '${tempDir.path}/model.bin';
+        await File(
+          '$destinationPath.part',
+        ).writeAsBytes('stale wrong bytes'.codeUnits);
+
+        server.listen((request) {
+          request.response.statusCode = HttpStatus.ok;
+          request.response.add(payloadBytes);
+          request.response.close();
+        });
+
+        final events = await downloadAndVerify(
+          DownloadSpec(
+            urls: ['http://localhost:${server.port}/model.bin'],
+            destinationPath: destinationPath,
+            sha256: payloadSha256,
+          ),
+        ).toList();
+
+        expect(events.first.receivedBytes, 0);
+        expect(await File(destinationPath).readAsBytes(), payloadBytes);
+      },
+    );
+  });
 }

@@ -85,27 +85,39 @@ class _CaptionScreenState extends State<CaptionScreen> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('下载翻译模型'),
-        content: const Text('首次使用翻译需要下载约 1.08 GB 的翻译模型，确定现在下载吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('下载'),
-          ),
-        ],
-      ),
-    );
+    // `isLoaded` resets to false every process start, but the downloaded
+    // model file itself persists — only ask to confirm a (re-)download when
+    // one would actually happen, not on every relaunch.
+    final alreadyDownloaded = await engine.isModelDownloaded();
     if (!mounted) return;
-    if (confirmed != true) {
-      _runAction(() => widget.coordinator.setCaptionMode(CaptionMode.captions));
-      return;
+
+    if (!alreadyDownloaded) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('下载翻译模型'),
+          content: const Text(
+            '首次使用翻译需要下载约 1.08 GB 的翻译模型，确定现在下载吗？\n\n'
+            '下载过程中请保持本 App 在前台，切到后台可能被系统限制网络导致中断'
+            '（中断后重新进入会从断点继续，无需重新下载）。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('下载'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (confirmed != true) {
+        _runAction(() => widget.coordinator.setCaptionMode(CaptionMode.captions));
+        return;
+      }
     }
 
     final progress = ValueNotifier<DownloadProgress?>(null);
@@ -127,13 +139,22 @@ class _CaptionScreenState extends State<CaptionScreen> {
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        content: ValueListenableBuilder<DownloadProgress?>(
-          valueListenable: progress,
-          builder: (context, value, _) => DownloadProgressBar(
-            label: '正在下载翻译模型…',
-            receivedBytes: value?.receivedBytes ?? 0,
-            totalBytes: value?.totalBytes,
+      builder: (_) => PopScope(
+        // `barrierDismissible: false` alone doesn't block the Android back
+        // button — only tap-outside. Without this, back pops the dialog
+        // route while the download keeps running in the background; when it
+        // later finishes, the unconditional Navigator.pop() below pops the
+        // next route up (the caption screen itself) instead, leaving a
+        // black screen.
+        canPop: false,
+        child: AlertDialog(
+          content: ValueListenableBuilder<DownloadProgress?>(
+            valueListenable: progress,
+            builder: (context, value, _) => DownloadProgressBar(
+              label: alreadyDownloaded ? '正在加载翻译模型…' : '正在下载翻译模型…',
+              receivedBytes: value?.receivedBytes ?? 0,
+              totalBytes: value?.totalBytes,
+            ),
           ),
         ),
       ),
@@ -262,12 +283,6 @@ class _CaptionScreenState extends State<CaptionScreen> {
                   if (controller.partialText.isNotEmpty)
                     _captionText(
                       controller.partialText,
-                      controller.settings.fontSize,
-                      colors.dimText,
-                    ),
-                  if (controller.partialTranslation != null)
-                    _captionText(
-                      controller.partialTranslation!,
                       controller.settings.fontSize,
                       colors.dimText,
                     ),

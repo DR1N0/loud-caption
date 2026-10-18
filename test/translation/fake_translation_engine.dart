@@ -18,6 +18,14 @@ class FakeTranslationEngine implements TranslationEngine {
   /// finished, without going through a real load.
   set isLoaded(bool value) => _loaded = value;
 
+  /// Defaults to `true` (as if the model were already downloaded) since most
+  /// tests care about loading/translation behavior, not the download-prompt
+  /// gate — set to `false` to exercise that gate specifically.
+  bool modelDownloaded = true;
+
+  @override
+  Future<bool> isModelDownloaded() async => modelDownloaded;
+
   @override
   Stream<DownloadProgress> ensureLoaded() {
     if (_loaded) return const Stream.empty();

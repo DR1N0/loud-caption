@@ -54,8 +54,6 @@ class CaptionController extends ChangeNotifier {
   bool _stopConfirmed = true;
   bool _disposed = false;
   String _partialText = '';
-  String? _partialTranslation;
-  TranslationRequest? _partialTranslationRequest;
   String? _message;
   CaptionStatus _status = CaptionStatus.idle;
 
@@ -64,12 +62,6 @@ class CaptionController extends ChangeNotifier {
   List<CaptionLine> get committedLines =>
       List<CaptionLine>.unmodifiable(_committedLines);
   String get partialText => _partialText;
-
-  /// The in-progress translation of [partialText], updated speculatively
-  /// while the line is still uncommitted (see [_maybeStartPartialTranslation]
-  /// for the skip-if-busy trigger). Superseded by the committed line's own
-  /// translation the moment a `finalText` event arrives.
-  String? get partialTranslation => _partialTranslation;
   String get displayText => [
     ..._committedLines.map((line) => line.original),
     if (_partialText.isNotEmpty) _partialText,
@@ -331,12 +323,8 @@ class CaptionController extends ChangeNotifier {
         if (_partialText == event.text) return;
         _partialText = event.text;
         _notify();
-        _maybeStartPartialTranslation(event.text, event.detectedLanguage);
       case SpeechEventKind.finalText:
-        _partialTranslationRequest?.cancel();
-        _partialTranslationRequest = null;
         _partialText = '';
-        _partialTranslation = null;
         if (event.text.isNotEmpty) {
           final line = CaptionLine(event.text);
           _committedLines.add(line);
@@ -374,50 +362,14 @@ class CaptionController extends ChangeNotifier {
     return target == detectedLanguage ? null : target;
   }
 
-  /// Speculatively translates the still-uncommitted partial line for a
-  /// pseudo-streaming effect, mirroring the ASR pipeline's own
-  /// skip-if-busy backpressure: a partial in flight is never queued behind,
-  /// just dropped, so this never falls further behind than one translation
-  /// call. Always superseded by [_startFinalTranslation] once the line
-  /// commits.
-  void _maybeStartPartialTranslation(String text, String? detectedLanguage) {
-    if (_partialTranslationRequest != null) return;
-    final target = _resolveTranslationTarget(detectedLanguage);
-    if (target == null) return;
-
-    final request = _translationEngine!.translate(
-      text: text,
-      sourceLang: detectedLanguage!,
-      targetLang: target,
-    );
-    _partialTranslationRequest = request;
-    var buffer = '';
-    request.output.listen(
-      (token) {
-        buffer += token;
-        _partialTranslation = buffer;
-        _notify();
-      },
-      onDone: () {
-        if (identical(_partialTranslationRequest, request)) {
-          _partialTranslationRequest = null;
-        }
-      },
-      onError: (Object _) {
-        if (identical(_partialTranslationRequest, request)) {
-          _partialTranslationRequest = null;
-        }
-      },
-      cancelOnError: true,
-    );
-  }
-
-  /// Always translates a freshly committed line — unlike the partial trigger
-  /// above, a final result is authoritative and must never be skipped or
-  /// left showing a stale partial's translation. Writes each growing token
-  /// back into the line's current list slot by identity, so a (rare) scroll
-  /// of this line off the two-line window before translation finishes just
-  /// silently stops applying further updates.
+  /// Translates a freshly committed line. Partial (uncommitted) text is
+  /// deliberately never translated — on-device inference latency can't keep
+  /// up with live speech, so an earlier speculative partial-translation
+  /// trigger was removed after real-device testing confirmed it fell behind.
+  /// Writes each growing token back into the line's current list slot by
+  /// identity, so a (rare) scroll of this line off the two-line window
+  /// before translation finishes just silently stops applying further
+  /// updates.
   void _startFinalTranslation(CaptionLine originalLine, String? detectedLanguage) {
     final target = _resolveTranslationTarget(detectedLanguage);
     if (target == null) return;
@@ -504,8 +456,6 @@ class CaptionController extends ChangeNotifier {
     final subscription = _eventSubscription;
     _eventSubscription = null;
     if (subscription != null) unawaited(subscription.cancel());
-    _partialTranslationRequest?.cancel();
-    _partialTranslationRequest = null;
     super.dispose();
   }
 

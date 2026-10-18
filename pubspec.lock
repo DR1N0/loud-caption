@@ -267,10 +267,11 @@ packages:
   llama_flutter_android:
     dependency: "direct main"
     description:
-      name: llama_flutter_android
-      sha256: "7f31b242a8a19ad2ee3a7cbf1ed4ac3bb17c19d4e360d19ae1ea24bdd86f5b05"
-      url: "https://pub.dev"
-    source: hosted
+      path: "."
+      ref: "fix/utf8-stream-boundary"
+      resolved-ref: "133938a5961ebb8dedbce8ae30f07871271b79db"
+      url: "https://github.com/DR1N0/Llama-Flutter"
+    source: git
     version: "0.2.6"
   logging:
     dependency: transitive

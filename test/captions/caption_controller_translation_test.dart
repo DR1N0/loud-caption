@@ -187,7 +187,8 @@ void main() {
     });
 
     test(
-      'skip-if-busy: a second partial does not start a new translation while one is in flight',
+      'a partial event never triggers a translation — on-device inference '
+      'latency can\'t keep up with live speech, confirmed on real hardware',
       () async {
         await inTranslateAllMode('en');
 
@@ -210,48 +211,7 @@ void main() {
         );
         await flushEvents();
 
-        expect(translation.calls, hasLength(1));
-        expect(translation.calls.single.text, '你');
-
-        translation.calls.single.request
-          ..emit('Hi')
-          ..complete();
-        await flushEvents();
-        expect(captions.partialTranslation, 'Hi');
-      },
-    );
-
-    test(
-      'a final event cancels an in-flight partial translation and starts a fresh one',
-      () async {
-        await inTranslateAllMode('en');
-
-        engine.emit(
-          const SpeechEvent(
-            SpeechEventKind.partial,
-            '你',
-            1,
-            detectedLanguage: 'zh',
-          ),
-        );
-        await flushEvents();
-        final partialRequest = translation.calls.single.request;
-        expect(partialRequest.cancelled, isFalse);
-
-        engine.emit(
-          const SpeechEvent(
-            SpeechEventKind.finalText,
-            '你好',
-            1,
-            detectedLanguage: 'zh',
-          ),
-        );
-        await flushEvents();
-
-        expect(partialRequest.cancelled, isTrue);
-        expect(translation.calls, hasLength(2));
-        expect(translation.calls.last.text, '你好');
-        expect(captions.partialTranslation, isNull);
+        expect(translation.calls, isEmpty);
       },
     );
   });

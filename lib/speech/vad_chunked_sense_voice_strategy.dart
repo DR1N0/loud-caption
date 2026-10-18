@@ -407,6 +407,17 @@ class _AsrResult {
   final String? lang;
 }
 
+/// SenseVoice's native `lang` field comes back wrapped in its own special-
+/// token syntax — e.g. `<|zh|>`, not `zh` — confirmed against sherpa-onnx's
+/// own documented SenseVoice JSON output. Strips that wrapper so the rest of
+/// the app (settings' `translationLanguages`, the routing table) can compare
+/// against plain ISO-ish codes.
+String? _normalizeDetectedLanguage(String raw) {
+  if (raw.isEmpty) return null;
+  final match = RegExp(r'^<\|([a-z]+)\|>$').firstMatch(raw);
+  return match?.group(1) ?? raw;
+}
+
 /// Sent from the main isolate to the VAD isolate every time the main
 /// isolate's listener processes an [_AsrResult] (partial or final alike).
 /// Tells the VAD isolate the ASR isolate's event loop just became free again,
@@ -636,7 +647,7 @@ Future<void> _asrIsolateEntry(_AsrIsolateInit init) async {
         _AsrResult(
           result.text,
           isFinal: message.isFinal,
-          lang: result.lang.isEmpty ? null : result.lang,
+          lang: _normalizeDetectedLanguage(result.lang),
         ),
       );
     } else if (message is _AsrSetLanguage) {
