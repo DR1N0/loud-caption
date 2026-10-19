@@ -3,13 +3,9 @@ import 'dart:async';
 import 'package:llama_flutter_android/llama_flutter_android.dart';
 
 import '../downloads/model_downloader.dart';
+import '../settings/app_settings.dart' show languageNames;
 import 'hy_mt2_model_download.dart';
 import 'translation_engine.dart';
-
-// Chinese display names for the languages Hy-MT2 is prompted to translate
-// into — matching Hy-MT2's own README table ("Chinese names should be used
-// in Chinese prompts"), independent of the app UI's own language labels.
-const _languageNames = {'zh': '中文', 'en': '英语', 'ja': '日语', 'ko': '韩语'};
 
 /// Builds the exact Hy-MT2 dense-model prompt: BOS, a user turn carrying the
 /// translation instruction, then the assistant-turn opener the model
@@ -18,7 +14,7 @@ const _languageNames = {'zh': '中文', 'en': '英语', 'ja': '日语', 'ko': '�
 /// (`train/llama_factory_support/hy_dense_template.py` in the upstream
 /// tencent/Hy-MT2 repo) only emits a system block when one is supplied.
 String buildHyMt2Prompt(String sourceText, String targetLanguageCode) {
-  final targetName = _languageNames[targetLanguageCode] ?? targetLanguageCode;
+  final targetName = languageNames[targetLanguageCode] ?? targetLanguageCode;
   final instruction =
       '将以下文本翻译为 $targetName，注意只需要输出翻译后的结果，不要额外解释：\n\n$sourceText';
   return '<｜hy_begin▁of▁sentence｜><｜hy_User｜>$instruction<｜hy_Assistant｜>';

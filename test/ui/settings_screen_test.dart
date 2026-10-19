@@ -11,6 +11,12 @@ void main() {
   testWidgets('shows the translate-all target and the four routing rows', (
     tester,
   ) async {
+    // Tall enough that the ListView's lazy sliver builds every section
+    // (recognition-language picker, translate-all picker, all four routing
+    // rows) without needing to scroll first.
+    tester.view.physicalSize = const Size(1080, 3200);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
     final controller = CaptionController(
       engine: _FakeSpeechEngine(),
       settingsStore: _MemorySettingsStore(),
@@ -24,14 +30,16 @@ void main() {
     await tester.pump();
 
     expect(find.text('设置'), findsOneWidget);
-    expect(find.bySemanticsLabel('翻译模式目标语言'), findsOneWidget);
-    // '英文' is the currently selected translate-all target, so it renders
-    // twice (the closed dropdown's visible text, plus an offstage duplicate
-    // Flutter keeps for sizing) — everything else renders once.
-    expect(find.text('中文'), findsOneWidget);
-    expect(find.text('英文'), findsNWidgets(2));
-    expect(find.text('日文'), findsOneWidget);
-    expect(find.text('韩文'), findsOneWidget);
+    expect(find.bySemanticsLabel('字幕模式识别语言\n自动'), findsOneWidget);
+    expect(find.bySemanticsLabel('翻译模式目标语言\n英语'), findsOneWidget);
+    // Each routing row is a ListTile, which merges its title + trailing
+    // dropdown into one multi-line semantics label rather than keeping the
+    // dropdown's own label isolated — match the routing-target substring
+    // instead of the full merged string.
+    expect(find.bySemanticsLabel(RegExp('中文的翻译目标')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('英语的翻译目标')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('日语的翻译目标')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('韩语的翻译目标')), findsOneWidget);
   });
 
   testWidgets('changing the translate-all target persists through the controller', (
@@ -53,9 +61,12 @@ void main() {
     // Opening via the dropdown's own displayed text (rather than the
     // Semantics wrapper) is what actually hit-tests the button in widget
     // tests; the Semantics label is still asserted above for accessibility.
-    await tester.tap(find.text('英文').first);
+    // Plain '英语' (no routing self-mapping suffix) uniquely identifies the
+    // translate-all picker's closed display — every routing row defaults
+    // to a self-mapped ('…（不翻译）'-suffixed) selection instead.
+    await tester.tap(find.text('英语').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('日文').last);
+    await tester.tap(find.text('日语').last);
     await tester.pumpAndSettle();
 
     expect(controller.settings.translateAllTarget, 'ja');

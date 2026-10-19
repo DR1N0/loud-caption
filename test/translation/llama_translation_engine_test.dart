@@ -19,9 +19,13 @@ void main() {
     expect(buildHyMt2Prompt('x', 'en'), contains('翻译为 英语，'));
     expect(buildHyMt2Prompt('x', 'ja'), contains('翻译为 日语，'));
     expect(buildHyMt2Prompt('x', 'ko'), contains('翻译为 韩语，'));
+    // Spot-checks beyond the original 4 — Hy-MT2 itself translates among 33
+    // languages; the target list was expanded to match.
+    expect(buildHyMt2Prompt('x', 'fr'), contains('翻译为 法语，'));
+    expect(buildHyMt2Prompt('x', 'ar'), contains('翻译为 阿拉伯语，'));
   });
 
-  test('an unrecognized language code falls back to the raw code', () {
-    expect(buildHyMt2Prompt('x', 'fr'), contains('翻译为 fr，'));
+  test('a genuinely unrecognized language code falls back to the raw code', () {
+    expect(buildHyMt2Prompt('x', 'xx'), contains('翻译为 xx，'));
   });
 }

@@ -5,15 +5,10 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa_onnx;
 
+import '../settings/app_settings.dart' show recognitionLanguages;
 import 'recognition_strategy.dart';
 import 'sense_voice_model_assets.dart';
 import 'speech_engine.dart';
-
-/// Language codes accepted by sherpa-onnx's SenseVoice model. Validated
-/// natively in `offline-sense-voice-model-config.cc`; anything outside this
-/// set is rejected by the native layer, so we reject it synchronously in
-/// Dart first for a clearer error.
-const _senseVoiceLanguages = ['auto', 'zh', 'en', 'ja', 'ko', 'yue'];
 
 /// Pre-roll back-dating applied to the speech-start offset the moment
 /// [sherpa_onnx.VoiceActivityDetector.isDetected] transitions from
@@ -186,9 +181,14 @@ class VadChunkedSenseVoiceStrategy implements RecognitionStrategy {
 
   @override
   List<SpeechEngineConfigOption> get configOptions => const [
+    // recognitionLanguages is also sherpa-onnx's SenseVoice model's exact
+    // accepted set — validated natively in
+    // `offline-sense-voice-model-config.cc`; anything outside it is
+    // rejected by the native layer, so we reject it synchronously in Dart
+    // first for a clearer error.
     SpeechEngineConfigOption(
       key: 'language',
-      allowedValues: _senseVoiceLanguages,
+      allowedValues: recognitionLanguages,
       defaultValue: 'auto',
     ),
   ];

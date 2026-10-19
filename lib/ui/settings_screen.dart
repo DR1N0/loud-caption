@@ -3,15 +3,10 @@ import 'package:flutter/material.dart';
 import '../captions/caption_controller.dart';
 import '../settings/app_settings.dart';
 
-const Map<String, String> _languageNames = {
-  'zh': '中文',
-  'en': '英文',
-  'ja': '日文',
-  'ko': '韩文',
-};
-
-/// Lets the user configure where translated captions go: one fixed target
-/// for 翻译 mode, and a per-source-language routing table for 互译.
+/// Lets the user force a recognition language (instead of SenseVoice's own
+/// "auto" detection, which can misfire on strong accents), configure where
+/// translated captions go: one fixed target for 翻译 mode, and a
+/// per-source-language routing table for 互译.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key, required this.controller});
 
@@ -79,12 +74,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
             child: Text(
+              '字幕模式识别语言',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          _languagePicker(
+            semanticLabel: '字幕模式识别语言',
+            languages: recognitionLanguages,
+            value: settings.recognitionLanguage,
+            onChanged: (language) => _apply(
+              () => widget.controller.setRecognitionLanguage(language),
+            ),
+          ),
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Text(
               '翻译模式目标语言',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
           _languagePicker(
             semanticLabel: '翻译模式目标语言',
+            languages: translationTargetLanguages,
             value: settings.translateAllTarget,
             onChanged: (language) =>
                 _apply(() => widget.controller.setTranslateAllTarget(language)),
@@ -106,6 +118,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _languagePicker({
     required String semanticLabel,
+    required List<String> languages,
     required String value,
     required ValueChanged<String> onChanged,
   }) => Padding(
@@ -116,10 +129,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         isExpanded: true,
         value: value,
         items: [
-          for (final language in translationLanguages)
+          for (final language in languages)
             DropdownMenuItem(
               value: language,
-              child: Text(_languageNames[language] ?? language),
+              child: Text(languageNames[language] ?? language),
             ),
         ],
         onChanged: _changing
@@ -133,7 +146,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _routingTile(CaptionSettings settings, String source) {
     final target = settings.routingTargetFor(source);
-    final sourceName = _languageNames[source] ?? source;
+    final sourceName = languageNames[source] ?? source;
     return ListTile(
       title: Text(sourceName),
       trailing: Semantics(
@@ -141,13 +154,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: DropdownButton<String>(
           value: target,
           items: [
-            for (final language in translationLanguages)
+            for (final language in translationTargetLanguages)
               DropdownMenuItem(
                 value: language,
                 child: Text(
                   language == source
-                      ? '${_languageNames[language] ?? language}（不翻译）'
-                      : _languageNames[language] ?? language,
+                      ? '${languageNames[language] ?? language}（不翻译）'
+                      : languageNames[language] ?? language,
                 ),
               ),
           ],

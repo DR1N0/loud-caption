@@ -200,6 +200,15 @@ class CaptionController extends ChangeNotifier {
     await _saveAndApply(_settings.withThemeMode(_settings.themeMode.other));
   }
 
+  /// Applies next time recognition starts (not a live hot-swap of an
+  /// already-running session) — a simpler, lower-risk design for a setting
+  /// that's set once and rarely revisited, not toggled mid-sentence.
+  Future<void> setRecognitionLanguage(String language) async {
+    await initialize();
+    if (_disposed) return;
+    await _saveAndApply(_settings.withRecognitionLanguage(language));
+  }
+
   Future<void> setTranslateAllTarget(String language) async {
     await initialize();
     if (_disposed) return;
@@ -264,7 +273,7 @@ class CaptionController extends ChangeNotifier {
           return null;
         }
 
-        final startedSession = await _engine.start('auto');
+        final startedSession = await _engine.start(_settings.recognitionLanguage);
         if (!_isCurrentListeningGeneration(generation) || !_mayStartCapture()) {
           try {
             await _engine.stop();

@@ -306,6 +306,20 @@ void main() {
       },
     );
 
+    test(
+      'setRecognitionLanguage persists and is used the next time recognition '
+      'starts — not a live hot-swap of an already-running session',
+      () async {
+        await captions.initialize();
+        await captions.setRecognitionLanguage('zh');
+        expect(store.value.recognitionLanguage, 'zh');
+
+        await captions.start();
+
+        expect(engine.started, ['zh']);
+      },
+    );
+
     test('font size steps at the presets and orientation persists', () async {
       await captions.initialize();
 
