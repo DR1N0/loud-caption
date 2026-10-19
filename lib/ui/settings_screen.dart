@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../captions/caption_controller.dart';
+import '../diagnostics/crash_log.dart' as crash_log;
 import '../settings/app_settings.dart';
 
 /// Lets the user force a recognition language (instead of SenseVoice's own
@@ -8,9 +10,20 @@ import '../settings/app_settings.dart';
 /// translated captions go: one fixed target for 翻译 mode, and a
 /// per-source-language routing table for 互译.
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key, required this.controller});
+  const SettingsScreen({
+    super.key,
+    required this.controller,
+    this.readCrashLog = crash_log.readCrashLog,
+    this.clearCrashLog = crash_log.clearCrashLog,
+  });
 
   final CaptionController controller;
+
+  /// Defaults to the real [crash_log.readCrashLog]/[crash_log.clearCrashLog];
+  /// overridable so tests can inject plain in-memory fakes instead of real
+  /// file I/O, which `testWidgets()`'s zone doesn't let resolve on its own.
+  final Future<String> Function() readCrashLog;
+  final Future<void> Function() clearCrashLog;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -124,6 +137,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ? null
                 : (value) =>
                       _apply(() => widget.controller.setWifiOnlyDownloads(value)),
+          ),
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Text('诊断', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          ListTile(
+            title: const Text('查看崩溃日志'),
+            subtitle: const Text('仅保存在本机，不会上传'),
+            onTap: _showCrashLogDialog,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showCrashLogDialog() async {
+    final log = await widget.readCrashLog();
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('崩溃日志'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(child: Text(log)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await widget.clearCrashLog();
+              if (ctx.mounted) Navigator.of(ctx).pop();
+            },
+            child: const Text('清除'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: log));
+              if (ctx.mounted) {
+                ScaffoldMessenger.of(
+                  ctx,
+                ).showSnackBar(const SnackBar(content: Text('已复制到剪贴板')));
+              }
+            },
+            child: const Text('复制'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('关闭'),
           ),
         ],
       ),

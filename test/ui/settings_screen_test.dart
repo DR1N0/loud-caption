@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:loud_caption/captions/caption_controller.dart';
 import 'package:loud_caption/settings/app_settings.dart';
@@ -107,6 +108,80 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('设置'), findsNothing);
   });
+
+  testWidgets(
+    '诊断 section shows the crash log and supports copy and clear',
+    (tester) async {
+      tester.view.physicalSize = const Size(1080, 3200);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.reset);
+      final controller = CaptionController(
+        engine: _FakeSpeechEngine(),
+        settingsStore: _MemorySettingsStore(),
+      );
+      await controller.initialize();
+      addTearDown(controller.dispose);
+
+      // Plain in-memory fakes, not real file I/O: readCrashLog/clearCrashLog
+      // normally do genuine dart:io work, which testWidgets()'s zone doesn't
+      // let resolve on its own — matching this project's own established DI
+      // pattern for exactly this reason (see ModelDownloadScreen.downloadModel,
+      // CaptionScreen.checkDownloadBlockReason). The real file-backed
+      // implementation is covered separately in
+      // test/diagnostics/crash_log_test.dart.
+      var log = 'a recorded crash';
+      var cleared = false;
+
+      // flutter_test registers no default handler for the clipboard
+      // platform channel, so an unmocked Clipboard.setData/getData call
+      // falls through to the real (nonexistent in tests) platform and
+      // never responds — hangs forever rather than throwing.
+      String? clipboardText;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+            switch (call.method) {
+              case 'Clipboard.setData':
+                clipboardText = (call.arguments as Map)['text'] as String?;
+                return null;
+              case 'Clipboard.getData':
+                return {'text': clipboardText};
+              default:
+                return null;
+            }
+          });
+      addTearDown(
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SettingsScreen(
+            controller: controller,
+            readCrashLog: () async => log,
+            clearCrashLog: () async {
+              cleared = true;
+              log = '暂无崩溃记录';
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('查看崩溃日志'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('a recorded crash'), findsOneWidget);
+
+      await tester.tap(find.text('复制'));
+      await tester.pump();
+      final copied = await Clipboard.getData(Clipboard.kTextPlain);
+      expect(copied?.text, contains('a recorded crash'));
+
+      await tester.tap(find.text('清除'));
+      await tester.pumpAndSettle();
+      expect(cleared, isTrue);
+    },
+  );
 }
 
 class _MemorySettingsStore implements SettingsStore {

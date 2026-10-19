@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'captions/caption_controller.dart';
+import 'diagnostics/crash_log.dart';
 import 'downloads/download_preflight.dart';
 import 'lifecycle/caption_lifecycle_coordinator.dart';
 import 'lifecycle/screen_awake.dart';
@@ -22,6 +23,7 @@ import 'ui/orientation_manager.dart';
 import 'ui/settings_screen.dart';
 
 void main() {
+  initCrashLogging();
   runApp(const CaptionApp());
 }
 

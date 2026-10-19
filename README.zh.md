@@ -61,6 +61,7 @@ debug 包和 release 包都用 `android/app/release-keystore.jks` 签名——�
 
 - release 包的 manifest 申请了 `RECORD_AUDIO`、`INTERNET` 和 `ACCESS_NETWORK_STATE`,没有存储、悬浮窗或前台服务权限。`INTERNET` 权限仅用于首次启动时下载经过校验的指定模型文件(见 [`docs/model-sources.md`](docs/model-sources.md)),应用不会发起其他任何网络请求。`ACCESS_NETWORK_STATE`(普通权限,无需弹窗授权)仅用于判断当前是否连接 Wi-Fi,服务于可选的"仅限 Wi-Fi 下载模型"设置开关。
 - 没有发现任何由本应用代码发起的语音上传路径;识别完全基于下载到本地的 sherpa-onnx(SenseVoice)和 Silero VAD 模型在设备本地完成,音频和识别出的文字都不会被发送到任何地方。这一点未经网络抓包独立验证。
+- 崩溃日志只写入本地一个大小受限的文件(不会上传),可在"设置 → 诊断"中查看或清除,需要反馈问题时可手动复制分享。
 
 ### 现状
 

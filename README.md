@@ -61,6 +61,7 @@ The tradeoff: because the key is public, anyone with this repo can produce an AP
 
 - The release manifest requests `RECORD_AUDIO`, `INTERNET`, and `ACCESS_NETWORK_STATE`; no storage, overlay, or foreground-service permission. `INTERNET` exists solely to download the pinned, checksum-verified model files on first launch (see [`docs/model-sources.md`](docs/model-sources.md)) — the app makes no other network requests. `ACCESS_NETWORK_STATE` (normal protection, no runtime prompt) only checks whether the current connection is Wi-Fi, for the optional "仅限 Wi-Fi 下载模型" Settings toggle.
 - No app-authored speech-upload path exists; recognition runs on-device via the downloaded sherpa-onnx (SenseVoice) and Silero VAD models, and no audio or recognized text is ever sent anywhere. This hasn't been verified by a network traffic trace.
+- Crashes are logged to a local, size-capped file (never uploaded) so a user can view or clear it from Settings → 诊断 and optionally share it manually when reporting a bug.
 
 ### Status
 
