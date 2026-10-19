@@ -215,7 +215,97 @@ void main() {
       },
     );
 
-    test('throws the last URL\'s error once every candidate has failed', () async {
+    test(
+      'prioritizes a reachable candidate over an earlier one that never responds',
+      () async {
+        // The first URL's server accepts the TCP connection but never
+        // answers the probe's HEAD request (or, if reachability-based
+        // reordering weren't in place, a real GET) — mirroring a real
+        // on-device finding where a GitHub-release proxy connected fine but
+        // then hung until the 15s connection timeout, even though a
+        // different, genuinely reachable mirror was listed right after it.
+        // Without reordering, this test would hang waiting on that real GET
+        // instead of ever reaching the good server.
+        server.listen((request) {
+          // Deliberately never responds.
+        });
+        final goodServer = await HttpServer.bind('localhost', 0);
+        addTearDown(() => goodServer.close(force: true));
+        goodServer.listen((request) {
+          request.response.statusCode = HttpStatus.ok;
+          request.response.add(payloadBytes);
+          request.response.close();
+        });
+        final destinationPath = '${tempDir.path}/model.bin';
+
+        final events = await downloadAndVerify(
+          DownloadSpec(
+            urls: [
+              'http://localhost:${server.port}/hangs.bin',
+              'http://localhost:${goodServer.port}/model.bin',
+            ],
+            destinationPath: destinationPath,
+            sha256: payloadSha256,
+          ),
+          probeTimeout: const Duration(milliseconds: 200),
+        ).toList();
+
+        expect(events, isNotEmpty);
+        expect(await File(destinationPath).readAsBytes(), payloadBytes);
+      },
+      timeout: const Timeout(Duration(seconds: 10)),
+    );
+
+    test(
+      'falls back to the second URL when the first accepts the connection '
+      'and answers HEAD but then never sends any body bytes for a real GET',
+      () async {
+        // Mirrors a real on-device finding: a proxy mirror answered the
+        // concurrent reachability probe's HEAD request instantly (so it won
+        // the race and was tried first), connected fine for the real GET
+        // and returned headers, then never sent a single body byte or
+        // closed the connection — a stall the original connection-timeout-
+        // only design had no way to detect, since the connection itself
+        // never failed.
+        server.listen((request) {
+          if (request.method == 'HEAD') {
+            request.response.statusCode = HttpStatus.ok;
+            request.response.close();
+            return;
+          }
+          request.response.statusCode = HttpStatus.ok;
+          request.response.headers.contentLength = payloadBytes.length;
+          // Deliberately never writes a body or closes the response.
+        });
+        final goodServer = await HttpServer.bind('localhost', 0);
+        addTearDown(() => goodServer.close(force: true));
+        goodServer.listen((request) {
+          request.response.statusCode = HttpStatus.ok;
+          request.response.add(payloadBytes);
+          request.response.close();
+        });
+        final destinationPath = '${tempDir.path}/model.bin';
+
+        final events = await downloadAndVerify(
+          DownloadSpec(
+            urls: [
+              'http://localhost:${server.port}/stalls.bin',
+              'http://localhost:${goodServer.port}/model.bin',
+            ],
+            destinationPath: destinationPath,
+            sha256: payloadSha256,
+          ),
+          probeTimeout: const Duration(milliseconds: 200),
+          stallTimeout: const Duration(milliseconds: 200),
+        ).toList();
+
+        expect(events, isNotEmpty);
+        expect(await File(destinationPath).readAsBytes(), payloadBytes);
+      },
+      timeout: const Timeout(Duration(seconds: 10)),
+    );
+
+    test('throws an aggregated error listing every candidate\'s failure', () async {
       server.listen((request) {
         request.response.statusCode = HttpStatus.notFound;
         request.response.close();
@@ -243,7 +333,7 @@ void main() {
           isA<StateError>().having(
             (e) => e.message,
             'message',
-            contains('403'),
+            allOf(contains('404'), contains('403')),
           ),
         ),
       );

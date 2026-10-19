@@ -103,7 +103,7 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
         Icon(Icons.cloud_download, color: colors.primaryText, size: 64),
         const SizedBox(height: 24),
         DownloadProgressBar(
-          label: _phaseLabel(event?.phase),
+          label: _phaseLabel(event),
           receivedBytes: event?.receivedBytes ?? 0,
           totalBytes: event?.totalBytes,
         ),
@@ -131,9 +131,17 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
     );
   }
 
-  String _phaseLabel(ModelDownloadPhase? phase) => switch (phase) {
-    null || ModelDownloadPhase.downloadingAsr => '下载语音识别模型中…',
-    ModelDownloadPhase.extracting => '解压模型中…',
-    ModelDownloadPhase.downloadingVad => '下载降噪模型中…',
-  };
+  // Includes the active mirror's host so a user stuck on a slow or failing
+  // download can tell which source is actually being used without digging
+  // through logs — real-device testing found the same download can succeed
+  // via one mirror and hang on another depending on the network.
+  String _phaseLabel(ModelDownloadEvent? event) {
+    final base = switch (event?.phase) {
+      null || ModelDownloadPhase.downloadingAsr => '下载语音识别模型中…',
+      ModelDownloadPhase.extracting => '解压模型中…',
+      ModelDownloadPhase.downloadingVad => '下载降噪模型中…',
+    };
+    final source = event?.source;
+    return source == null ? base : '$base\n来源: $source';
+  }
 }

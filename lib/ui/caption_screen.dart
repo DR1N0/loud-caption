@@ -213,8 +213,14 @@ class _CaptionScreenState extends State<CaptionScreen> {
         child: AlertDialog(
           content: ValueListenableBuilder<DownloadProgress?>(
             valueListenable: progress,
+            // The source suffix helps a user stuck on a slow/failing
+            // download tell which mirror is actually in use — see
+            // ModelDownloadScreen's matching label for the ASR download.
             builder: (context, value, _) => DownloadProgressBar(
-              label: alreadyDownloaded ? '正在加载翻译模型…' : '正在下载翻译模型…',
+              label: [
+                alreadyDownloaded ? '正在加载翻译模型…' : '正在下载翻译模型…',
+                if (value?.source != null) '来源: ${value!.source}',
+              ].join('\n'),
               receivedBytes: value?.receivedBytes ?? 0,
               totalBytes: value?.totalBytes,
             ),

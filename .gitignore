@@ -49,3 +49,7 @@ docs/superpowers
 docs/plans
 .superpowers
 .claude
+
+# Locally cached model downloads (used for ad hoc checksum verification),
+# not build output and not meant to be committed
+/build_cache/

@@ -32,33 +32,42 @@ const senseVoiceRequiredFreeBytes = 450000000;
 // two GitHub-release-proxy mirrors as fallbacks — both verified (via a HEAD
 // request matching the pinned size above) to serve the exact same bytes as
 // the original, not a re-packaged copy, so the single pinned SHA-256 per
-// file applies to every mirror. Proxy availability is known to churn, hence
-// two independent ones rather than just one.
+// file applies to every mirror. Proxy availability is known to churn (an
+// earlier pair, ghfast.top and gh-proxy.com, both went unreachable from a
+// real mainland-China network this app was tested on, replaced below with
+// gh.monlor.com and gh-proxy.org), hence two independent ones rather than
+// just one. Which candidate actually gets tried first is decided at
+// download time by `downloadAndVerify`'s concurrent reachability race, not
+// by this list's order — see model_downloader.dart.
 const _senseVoiceArchiveUrls = [
   '$_senseVoiceBaseUrl$_senseVoiceArchiveName',
-  'https://ghfast.top/$_senseVoiceBaseUrl$_senseVoiceArchiveName',
-  'https://gh-proxy.com/$_senseVoiceBaseUrl$_senseVoiceArchiveName',
+  'https://gh.monlor.com/$_senseVoiceBaseUrl$_senseVoiceArchiveName',
+  'https://gh-proxy.org/$_senseVoiceBaseUrl$_senseVoiceArchiveName',
 ];
 const _sileroVadUrls = [
   '$_senseVoiceBaseUrl$_sileroVadFileName',
-  'https://ghfast.top/$_senseVoiceBaseUrl$_sileroVadFileName',
-  'https://gh-proxy.com/$_senseVoiceBaseUrl$_sileroVadFileName',
+  'https://gh.monlor.com/$_senseVoiceBaseUrl$_sileroVadFileName',
+  'https://gh-proxy.org/$_senseVoiceBaseUrl$_sileroVadFileName',
 ];
 
 /// Which step of [downloadSenseVoiceModel] is in progress.
 enum ModelDownloadPhase { downloadingAsr, extracting, downloadingVad }
 
-/// Progress for an in-flight [downloadSenseVoiceModel] call.
+/// Progress for an in-flight [downloadSenseVoiceModel] call. [source] (see
+/// [DownloadProgress.source]) is null during [ModelDownloadPhase.extracting],
+/// which isn't a network step.
 class ModelDownloadEvent {
   const ModelDownloadEvent({
     required this.phase,
     required this.receivedBytes,
     this.totalBytes,
+    this.source,
   });
 
   final ModelDownloadPhase phase;
   final int receivedBytes;
   final int? totalBytes;
+  final String? source;
 }
 
 /// Whether both model files are already present at their fixed destination
@@ -116,6 +125,7 @@ Stream<ModelDownloadEvent> downloadSenseVoiceModel({
       phase: ModelDownloadPhase.downloadingAsr,
       receivedBytes: progress.receivedBytes,
       totalBytes: progress.totalBytes,
+      source: progress.source,
     );
   }
 
@@ -146,6 +156,7 @@ Stream<ModelDownloadEvent> downloadSenseVoiceModel({
       phase: ModelDownloadPhase.downloadingVad,
       receivedBytes: progress.receivedBytes,
       totalBytes: progress.totalBytes,
+      source: progress.source,
     );
   }
 }

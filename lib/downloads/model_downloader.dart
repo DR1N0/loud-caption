@@ -25,12 +25,22 @@ class DownloadSpec {
 }
 
 /// Progress for an in-flight [downloadAndVerify] call. [totalBytes] is null
-/// when the server didn't report a `Content-Length`.
+/// when the server didn't report a `Content-Length`. [source] is the
+/// authority (host, plus port if non-default) of the candidate URL this
+/// progress came from — null only for the "already verified, nothing to
+/// download" short-circuit — surfaced in the UI so a user hitting a slow or
+/// failing download can tell which mirror is actually in use without
+/// digging through logs.
 class DownloadProgress {
-  const DownloadProgress({required this.receivedBytes, this.totalBytes});
+  const DownloadProgress({
+    required this.receivedBytes,
+    this.totalBytes,
+    this.source,
+  });
 
   final int receivedBytes;
   final int? totalBytes;
+  final String? source;
 }
 
 /// A minimal [Sink] that just remembers the last [Digest] it was given —
@@ -67,24 +77,51 @@ Future<bool> verifyExisting(String path, String expectedSha256) async {
 }
 
 /// Downloads a file matching [spec.sha256] to [spec.destinationPath],
-/// trying each of [spec.urls] in order until one produces a verified file.
+/// trying each of [spec.urls] until one produces a verified file.
+///
+/// Which candidate is tried first is decided by [_reachabilityOrdered]: a
+/// short concurrent HEAD-request race, not the fixed order [spec.urls] was
+/// declared in. Mirror reachability from mainland China is unpredictable
+/// and ISP/region-dependent — a GitHub-release proxy that works on one
+/// network can be fully blocked on another, while direct github.com (always
+/// tried too, never skipped) sometimes gets through when neither proxy
+/// does — so a fixed priority order risks burning the full per-candidate
+/// connection timeout on sources that are actually dead on this network
+/// before ever reaching the one that works.
 ///
 /// Streams to a sibling `.part` file while incrementally hashing it. A
-/// leftover `.part` file from an earlier interrupted attempt (app killed,
-/// connection dropped) is resumed via an HTTP `Range` request rather than
-/// re-downloaded from scratch — see [_downloadOnce]. Only a proven-corrupt
+/// server that accepts the connection but then goes silent — whether before
+/// ever sending response headers, or after headers but with no (or only
+/// partial) body bytes — counts as a failure too, not just a dropped
+/// connection or bad status code: [stallTimeout] bounds how long this waits
+/// at each of those two stages (and, within the body stage, between
+/// individual chunks), so a slow-but-steady transfer is never cut off, only
+/// one that's gone completely silent. This was observed on-device: a proxy
+/// mirror answered the reachability race's `HEAD` probe fine, won the race,
+/// then accepted the real `GET`'s connection and returned headers but never
+/// sent a single body byte — `httpClient.connectionTimeout` alone doesn't
+/// catch that, since the TCP handshake itself succeeded. A leftover `.part`
+/// file from an earlier interrupted
+/// attempt (app killed, connection dropped, or exactly this kind of stall)
+/// is resumed via an HTTP `Range` request rather than re-downloaded from
+/// scratch — see [_downloadOnce]. Only a proven-corrupt
 /// download (failed checksum) deletes the `.part` file; any other failure —
 /// a network error, a non-200/206 response — leaves it in place so the next
 /// attempt (the next candidate URL, or a future call after the app
 /// restarts) can resume from it. Only once every candidate has failed does
-/// this rethrow (the last URL's error). [spec.destinationPath] is never
-/// touched until a candidate's download verifies, so an interrupted or
-/// corrupted attempt can never leave a bad file at the final path. If
+/// this throw — a single StateError listing every URL's individual
+/// failure, not just the last one, since on a flaky connection the earlier
+/// candidates' errors are often the more informative ones (e.g. the primary
+/// host timing out vs. a mirror returning 403). [spec.destinationPath] is
+/// never touched until a candidate's download verifies, so an interrupted
+/// or corrupted attempt can never leave a bad file at the final path. If
 /// [spec.destinationPath] already exists and verifies, completes
 /// immediately without downloading anything.
 Stream<DownloadProgress> downloadAndVerify(
   DownloadSpec spec, {
   HttpClient? client,
+  Duration probeTimeout = const Duration(seconds: 5),
+  Duration stallTimeout = const Duration(seconds: 20),
 }) async* {
   final destination = File(spec.destinationPath);
   if (await destination.exists() &&
@@ -99,8 +136,11 @@ Stream<DownloadProgress> downloadAndVerify(
   final httpClient = client ?? (HttpClient()..connectionTimeout = const Duration(seconds: 15));
 
   try {
-    Object? lastError;
-    for (final url in spec.urls) {
+    final orderedUrls = spec.urls.length > 1
+        ? await _reachabilityOrdered(spec.urls, httpClient, probeTimeout)
+        : spec.urls;
+    final failures = <String>[];
+    for (final url in orderedUrls) {
       try {
         // `await for` (not `yield*`) is required here: a `try`/`catch`
         // wrapped around `yield* someStream` does NOT catch errors from
@@ -115,19 +155,60 @@ Stream<DownloadProgress> downloadAndVerify(
               partFile: partFile,
               expectedSha256: spec.sha256,
               httpClient: httpClient,
+              stallTimeout: stallTimeout,
             )) {
           yield progress;
         }
         await partFile.rename(spec.destinationPath);
         return;
       } catch (error) {
-        lastError = error;
+        failures.add('$url: $error');
       }
     }
-    throw lastError!;
+    throw StateError(
+      'All ${spec.urls.length} source(s) failed:\n${failures.join('\n')}',
+    );
   } finally {
     if (client == null) httpClient.close();
   }
+}
+
+/// Probes every candidate in [urls] concurrently with a short `HEAD`
+/// request and returns them reordered so ones that answered successfully
+/// come first — in the order they answered, so the fastest-reachable
+/// candidate is tried first — followed by any that failed or didn't
+/// respond within [probeTimeout], in their original order as a fallback.
+/// Returns [urls] unchanged if every probe fails, since the normal
+/// try-each-in-order loop's own error reporting already covers that case.
+///
+/// A `HEAD` request (rather than opening a real `GET` and cancelling it) is
+/// enough to establish reachability: every mirror this app points at was
+/// already confirmed to answer `HEAD` with a matching `Content-Length` when
+/// it was vetted as a source (see docs/model-sources.md).
+Future<List<String>> _reachabilityOrdered(
+  List<String> urls,
+  HttpClient httpClient,
+  Duration probeTimeout,
+) async {
+  final reachable = <String>[];
+  await Future.wait(
+    urls.map((url) async {
+      try {
+        final request = await httpClient
+            .headUrl(Uri.parse(url))
+            .timeout(probeTimeout);
+        final response = await request.close().timeout(probeTimeout);
+        await response.drain<void>();
+        if (response.statusCode < 400) reachable.add(url);
+      } catch (_) {
+        // Left out of `reachable`; still gets a real attempt below, just
+        // not prioritized.
+      }
+    }),
+  );
+  if (reachable.isEmpty) return urls;
+  final unreachable = urls.where((url) => !reachable.contains(url));
+  return [...reachable, ...unreachable];
 }
 
 /// One attempt against a single [url]. If [partFile] already has bytes on
@@ -147,14 +228,19 @@ Stream<DownloadProgress> _downloadOnce({
   required File partFile,
   required String expectedSha256,
   required HttpClient httpClient,
+  required Duration stallTimeout,
 }) async* {
+  final source = Uri.parse(url).authority;
   final resumeFrom = await partFile.exists() ? await partFile.length() : 0;
 
   final request = await httpClient.getUrl(Uri.parse(url));
   if (resumeFrom > 0) {
     request.headers.set(HttpHeaders.rangeHeader, 'bytes=$resumeFrom-');
   }
-  final response = await request.close();
+  // `httpClient.connectionTimeout` only bounds the TCP handshake — a server
+  // that accepts the connection but never sends any HTTP response (not even
+  // headers) would otherwise hang here indefinitely.
+  final response = await request.close().timeout(stallTimeout);
 
   final resuming = resumeFrom > 0 && response.statusCode == HttpStatus.partialContent;
   if (!resuming && response.statusCode != HttpStatus.ok) {
@@ -184,15 +270,26 @@ Stream<DownloadProgress> _downloadOnce({
   }
 
   try {
-    yield DownloadProgress(receivedBytes: receivedBytes, totalBytes: totalBytes);
+    yield DownloadProgress(
+      receivedBytes: receivedBytes,
+      totalBytes: totalBytes,
+      source: source,
+    );
 
-    await for (final chunk in response) {
+    // `.timeout()` resets its clock on every chunk, not once for the whole
+    // transfer — it only fires on genuine silence, so a slow-but-still-
+    // moving download is never penalized, only one that's gone fully quiet
+    // (see the stall this was added for: a proxy mirror that answered the
+    // reachability probe's HEAD request fine, then accepted the real GET's
+    // connection and returned headers, but never sent a single body byte).
+    await for (final chunk in response.timeout(stallTimeout)) {
       sink.add(chunk);
       hashSink.add(chunk);
       receivedBytes += chunk.length;
       yield DownloadProgress(
         receivedBytes: receivedBytes,
         totalBytes: totalBytes,
+        source: source,
       );
     }
 
