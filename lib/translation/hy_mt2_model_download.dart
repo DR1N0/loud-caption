@@ -17,6 +17,10 @@ const _hyMt2FileName = 'Hy-MT2-1.8B-Q4_K_M.gguf';
 const _hyMt2Sha256 =
     'dc5f44fcf1fa496ee7ad725982c0c8c553a4de00259b53af84c4b89fb0c06699';
 
+/// Free space actually needed: the pinned file size above (no extraction —
+/// this downloads straight to its final destination) plus ~5% headroom.
+const hyMt2RequiredFreeBytes = 1200000000;
+
 // Hugging Face itself is unreliable from mainland China — observed firsthand
 // as a ~10s stall before falling back — so ModelScope (Tencent's own
 // official publish of this exact repository, hosted in mainland China) is

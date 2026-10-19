@@ -93,6 +93,13 @@ void main() {
     expect(AppThemeMode.light.other, AppThemeMode.dark);
   });
 
+  test('wifiOnlyDownloads defaults to false and round-trips', () {
+    final settings = CaptionSettings();
+
+    expect(settings.wifiOnlyDownloads, isFalse);
+    expect(settings.withWifiOnlyDownloads(true).wifiOnlyDownloads, isTrue);
+  });
+
   test('save and reload retain every field', () async {
     final store = SharedPreferencesSettingsStore();
     final settings = CaptionSettings(
@@ -102,6 +109,7 @@ void main() {
       translateAllTarget: 'ja',
       routing: const {'zh': 'en', 'en': 'zh'},
       themeMode: AppThemeMode.light,
+      wifiOnlyDownloads: true,
     );
 
     await store.save(settings);
@@ -118,6 +126,7 @@ void main() {
     expect(settings.captionMode, CaptionMode.captions);
     expect(settings.translateAllTarget, 'en');
     expect(settings.themeMode, AppThemeMode.dark);
+    expect(settings.wifiOnlyDownloads, isFalse);
   });
 
   test('an unrecognized stored mode falls back to captions', () async {

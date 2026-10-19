@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'captions/caption_controller.dart';
+import 'downloads/download_preflight.dart';
 import 'lifecycle/caption_lifecycle_coordinator.dart';
 import 'lifecycle/screen_awake.dart';
 import 'permissions/microphone_access.dart';
@@ -36,6 +37,7 @@ class CaptionApp extends StatefulWidget {
     this.orientationManager,
     this.isModelReady,
     this.downloadModel,
+    this.checkDownloadBlockReason = downloadBlockReason,
   });
 
   final SpeechEngine? engine;
@@ -52,6 +54,11 @@ class CaptionApp extends StatefulWidget {
   /// Defaults to [downloadSenseVoiceModel]; forwarded to [ModelDownloadScreen]
   /// unchanged.
   final Stream<ModelDownloadEvent> Function()? downloadModel;
+
+  /// Defaults to [downloadBlockReason]; forwarded to [ModelDownloadScreen]
+  /// and [CaptionScreen] unchanged.
+  final Future<String?> Function({required int requiredBytes, required bool wifiOnly})
+  checkDownloadBlockReason;
 
   @override
   State<CaptionApp> createState() => _CaptionAppState();
@@ -173,6 +180,8 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
       home = ModelDownloadScreen(
         onReady: _onModelDownloaded,
         downloadModel: widget.downloadModel,
+        settingsStore: widget.settingsStore,
+        checkDownloadBlockReason: widget.checkDownloadBlockReason,
       );
     } else if (!_ready) {
       home = const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -183,6 +192,7 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
         controller: _controller,
         coordinator: _coordinator,
         onOpenSettings: _openSettings,
+        checkDownloadBlockReason: widget.checkDownloadBlockReason,
       );
     }
     return MaterialApp(

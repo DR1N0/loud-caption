@@ -12,6 +12,15 @@ import 'package:loud_caption/ui/orientation_manager.dart';
 
 import '../translation/fake_translation_engine.dart';
 
+// The real preflight check hits a platform channel with no implementation
+// in widget tests; these tests are about the translation-download flow
+// itself, not the preflight gate (covered separately), so this is always
+// clear to proceed.
+Future<String?> _alwaysClear({
+  required int requiredBytes,
+  required bool wifiOnly,
+}) async => null;
+
 void main() {
   testWidgets('requests microphone access only after tapping 开始', (
     tester,
@@ -302,6 +311,34 @@ void main() {
   );
 
   testWidgets(
+    'a blocked preflight check shows the reason, never shows the confirm '
+    'dialog, and returns the mode to 字幕',
+    (tester) async {
+      final fixture = _Fixture(
+        checkDownloadBlockReason: ({
+          required requiredBytes,
+          required wifiOnly,
+        }) async => '存储空间不足：需要约 1200 MB，仅剩 100 MB。请清理空间后重试。',
+      );
+      fixture.translation.modelDownloaded = false;
+      await fixture.pump(tester);
+
+      await tester.tap(find.bySemanticsLabel('切换模式'));
+      await fixture.advance(tester);
+
+      expect(find.textContaining('存储空间不足'), findsOneWidget);
+      expect(find.text('下载翻译模型'), findsNothing);
+
+      await tester.tap(find.text('好'));
+      await fixture.advance(tester);
+
+      expect(fixture.translation.isLoaded, isFalse);
+      expect(fixture.store.value.captionMode, CaptionMode.captions);
+      await fixture.close(tester);
+    },
+  );
+
+  testWidgets(
     'a translation mode already active from a previous session loads the '
     'engine on startup, without requiring the user to cycle the mode again',
     (tester) async {
@@ -391,6 +428,7 @@ class _Fixture {
   _Fixture({
     MicAccessState access = MicAccessState.granted,
     SetOrientations? setOrientations,
+    this.checkDownloadBlockReason = _alwaysClear,
   }) : microphone = _FakeMicrophoneAccess(access),
        store = _MemorySettingsStore(CaptionSettings()),
        orientationManager = OrientationManager(
@@ -403,6 +441,8 @@ class _Fixture {
   final _FakeMicrophoneAccess microphone;
   final _MemorySettingsStore store;
   final OrientationManager orientationManager;
+  final Future<String?> Function({required int requiredBytes, required bool wifiOnly})
+  checkDownloadBlockReason;
 
   Future<void> pump(WidgetTester tester) async {
     await tester.pumpWidget(
@@ -414,6 +454,7 @@ class _Fixture {
         screenAwake: awake,
         orientationManager: orientationManager,
         isModelReady: () async => true,
+        checkDownloadBlockReason: checkDownloadBlockReason,
       ),
     );
     await advance(tester);

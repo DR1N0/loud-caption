@@ -107,6 +107,7 @@ class CaptionSettings {
     String translateAllTarget = 'en',
     Map<String, String> routing = const {},
     AppThemeMode themeMode = AppThemeMode.dark,
+    bool wifiOnlyDownloads = false,
   }) => CaptionSettings._(
     _nearestFontSize(fontSize),
     landscape,
@@ -119,6 +120,7 @@ class CaptionSettings {
     _validatedFromList(translateAllTarget, translationTargetLanguages, fallback: 'en'),
     _validatedRouting(routing),
     themeMode,
+    wifiOnlyDownloads,
   );
 
   const CaptionSettings._(
@@ -129,6 +131,7 @@ class CaptionSettings {
     this._translateAllTarget,
     this._routing,
     this._themeMode,
+    this._wifiOnlyDownloads,
   );
 
   static const List<double> fontSizePresets = [16, 20, 24, 32, 48, 64, 80];
@@ -140,6 +143,7 @@ class CaptionSettings {
   final String _translateAllTarget;
   final Map<String, String> _routing;
   final AppThemeMode _themeMode;
+  final bool _wifiOnlyDownloads;
 
   double get fontSize => _fontSize;
   bool get landscape => _landscape;
@@ -147,6 +151,7 @@ class CaptionSettings {
   String get recognitionLanguage => _recognitionLanguage;
   String get translateAllTarget => _translateAllTarget;
   AppThemeMode get themeMode => _themeMode;
+  bool get wifiOnlyDownloads => _wifiOnlyDownloads;
 
   /// The configured translation target for [sourceLanguage], or
   /// [sourceLanguage] itself (no translation) if it isn't one of
@@ -172,6 +177,9 @@ class CaptionSettings {
 
   CaptionSettings withThemeMode(AppThemeMode mode) => _copy(themeMode: mode);
 
+  CaptionSettings withWifiOnlyDownloads(bool value) =>
+      _copy(wifiOnlyDownloads: value);
+
   CaptionSettings _copy({
     double? fontSize,
     bool? landscape,
@@ -180,6 +188,7 @@ class CaptionSettings {
     String? translateAllTarget,
     Map<String, String>? routing,
     AppThemeMode? themeMode,
+    bool? wifiOnlyDownloads,
   }) => CaptionSettings(
     fontSize: fontSize ?? this.fontSize,
     landscape: landscape ?? this.landscape,
@@ -188,6 +197,7 @@ class CaptionSettings {
     translateAllTarget: translateAllTarget ?? this.translateAllTarget,
     routing: routing ?? _routing,
     themeMode: themeMode ?? this.themeMode,
+    wifiOnlyDownloads: wifiOnlyDownloads ?? this.wifiOnlyDownloads,
   );
 
   @override
@@ -199,6 +209,7 @@ class CaptionSettings {
       other.recognitionLanguage == recognitionLanguage &&
       other.translateAllTarget == translateAllTarget &&
       other.themeMode == themeMode &&
+      other.wifiOnlyDownloads == wifiOnlyDownloads &&
       translationLanguages.every(
         (language) =>
             other.routingTargetFor(language) == routingTargetFor(language),
@@ -212,6 +223,7 @@ class CaptionSettings {
     recognitionLanguage,
     translateAllTarget,
     themeMode,
+    wifiOnlyDownloads,
     Object.hashAll([
       for (final language in translationLanguages) routingTargetFor(language),
     ]),
@@ -292,6 +304,7 @@ class SharedPreferencesSettingsStore implements SettingsStore {
   static const recognitionLanguageKey = 'caption.recognitionLanguage';
   static const translateAllTargetKey = 'caption.translateAllTarget';
   static const themeModeKey = 'caption.themeMode';
+  static const wifiOnlyDownloadsKey = 'caption.wifiOnlyDownloads';
 
   static String routingKeyFor(String language) => 'caption.routing.$language';
 
@@ -312,6 +325,7 @@ class SharedPreferencesSettingsStore implements SettingsStore {
           language: preferences.getString(routingKeyFor(language)) ?? language,
       },
       themeMode: _readThemeMode(preferences),
+      wifiOnlyDownloads: preferences.getBool(wifiOnlyDownloadsKey) ?? false,
     );
   }
 
@@ -375,6 +389,13 @@ class SharedPreferencesSettingsStore implements SettingsStore {
         preferences.setString(themeModeKey, settings.themeMode.name),
         themeModeKey,
       );
+      await _write(
+        preferences.setBool(
+          wifiOnlyDownloadsKey,
+          settings.wifiOnlyDownloads,
+        ),
+        wifiOnlyDownloadsKey,
+      );
     } catch (error) {
       final rollbackError = await snapshot.restore(preferences);
       throw SettingsPersistenceException(error, rollbackError: rollbackError);
@@ -433,6 +454,7 @@ class _SettingsSnapshot {
     required this.translateAllTarget,
     required this.routing,
     required this.themeMode,
+    required this.wifiOnlyDownloads,
   });
 
   factory _SettingsSnapshot.capture(SettingsPreferences preferences) =>
@@ -487,6 +509,13 @@ class _SettingsSnapshot {
             SharedPreferencesSettingsStore.themeModeKey,
           ),
         ),
+        wifiOnlyDownloads: _StoredValue.capture(
+          preferences,
+          SharedPreferencesSettingsStore.wifiOnlyDownloadsKey,
+          () => preferences.getBool(
+            SharedPreferencesSettingsStore.wifiOnlyDownloadsKey,
+          ),
+        ),
       );
 
   final _StoredValue<double> fontSize;
@@ -496,6 +525,7 @@ class _SettingsSnapshot {
   final _StoredValue<String> translateAllTarget;
   final Map<String, _StoredValue<String>> routing;
   final _StoredValue<String> themeMode;
+  final _StoredValue<bool> wifiOnlyDownloads;
 
   Future<Object?> restore(SettingsPreferences preferences) async {
     Object? firstFailure;
@@ -575,6 +605,16 @@ class _SettingsSnapshot {
         SharedPreferencesSettingsStore.themeModeKey,
         (value) => preferences.setString(
           SharedPreferencesSettingsStore.themeModeKey,
+          value,
+        ),
+      ),
+    );
+    await attempt(
+      () => wifiOnlyDownloads.restore(
+        preferences,
+        SharedPreferencesSettingsStore.wifiOnlyDownloadsKey,
+        (value) => preferences.setBool(
+          SharedPreferencesSettingsStore.wifiOnlyDownloadsKey,
           value,
         ),
       ),

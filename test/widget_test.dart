@@ -29,6 +29,10 @@ void main() {
           orientationManager: OrientationManager(setOrientations: (_) async {}),
           isModelReady: () async => false,
           downloadModel: () => downloadController.stream,
+          checkDownloadBlockReason: ({
+            required requiredBytes,
+            required wifiOnly,
+          }) async => null,
         ),
       );
       await tester.pump();

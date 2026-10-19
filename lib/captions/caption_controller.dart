@@ -209,6 +209,12 @@ class CaptionController extends ChangeNotifier {
     await _saveAndApply(_settings.withRecognitionLanguage(language));
   }
 
+  Future<void> setWifiOnlyDownloads(bool value) async {
+    await initialize();
+    if (_disposed) return;
+    await _saveAndApply(_settings.withWifiOnlyDownloads(value));
+  }
+
   Future<void> setTranslateAllTarget(String language) async {
     await initialize();
     if (_disposed) return;

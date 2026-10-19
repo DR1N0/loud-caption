@@ -49,7 +49,7 @@ make install-debug     # 构建 + adb install -r 安装 debug 包
 make install-release   # 构建 + adb install -r 安装 release 包
 ```
 
-首次启动时,应用会先下载并校验约 240 MB 的语音识别模型(SenseVoice + Silero VAD),下载完成前无法使用——请确保有足够的时间、存储空间和网络连接。下载完成后,点击 **开始** 并同意 Android 弹出的麦克风权限请求;此后使用应用不再需要联网。之后如果切换到翻译模式,会触发另一次独立的按需下载(约 1.08 GB,Hy-MT2——见 [`docs/model-sources.md`](docs/model-sources.md));不需要翻译功能可以跳过。
+首次启动时,应用会先下载并校验约 240 MB 的语音识别模型(SenseVoice + Silero VAD),下载完成前无法使用——请确保有足够的时间、存储空间和网络连接。下载完成后,点击 **开始** 并同意 Android 弹出的麦克风权限请求;此后使用应用不再需要联网。之后如果切换到翻译模式,会触发另一次独立的按需下载(约 1.08 GB,Hy-MT2——见 [`docs/model-sources.md`](docs/model-sources.md));不需要翻译功能可以跳过。两次下载开始前都会先检查存储空间是否足够,不够会直接提示而不会开始下载;设置页中还有一个可选的"仅限 Wi-Fi 下载模型"开关,开启后未连接 Wi-Fi 时会阻止下载,方便不想消耗移动流量的用户。
 
 ### 签名说明
 
@@ -59,7 +59,7 @@ debug 包和 release 包都用 `android/app/release-keystore.jks` 签名——�
 
 ### 隐私
 
-- release 包的 manifest 申请了 `RECORD_AUDIO` 和 `INTERNET`,没有存储、悬浮窗或前台服务权限。`INTERNET` 权限仅用于首次启动时下载经过校验的指定模型文件(见 [`docs/model-sources.md`](docs/model-sources.md)),应用不会发起其他任何网络请求。
+- release 包的 manifest 申请了 `RECORD_AUDIO`、`INTERNET` 和 `ACCESS_NETWORK_STATE`,没有存储、悬浮窗或前台服务权限。`INTERNET` 权限仅用于首次启动时下载经过校验的指定模型文件(见 [`docs/model-sources.md`](docs/model-sources.md)),应用不会发起其他任何网络请求。`ACCESS_NETWORK_STATE`(普通权限,无需弹窗授权)仅用于判断当前是否连接 Wi-Fi,服务于可选的"仅限 Wi-Fi 下载模型"设置开关。
 - 没有发现任何由本应用代码发起的语音上传路径;识别完全基于下载到本地的 sherpa-onnx(SenseVoice)和 Silero VAD 模型在设备本地完成,音频和识别出的文字都不会被发送到任何地方。这一点未经网络抓包独立验证。
 
 ### 现状

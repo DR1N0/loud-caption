@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../captions/caption_controller.dart';
+import '../downloads/download_preflight.dart';
 import '../downloads/model_downloader.dart';
 import '../lifecycle/caption_lifecycle_coordinator.dart';
 import '../permissions/microphone_access.dart';
 import '../settings/app_settings.dart';
+import '../translation/hy_mt2_model_download.dart';
 import 'caption_theme.dart';
 import 'download_progress_bar.dart';
 
@@ -18,11 +20,17 @@ class CaptionScreen extends StatefulWidget {
     required this.controller,
     required this.coordinator,
     required this.onOpenSettings,
+    this.checkDownloadBlockReason = downloadBlockReason,
   });
 
   final CaptionController controller;
   final CaptionLifecycleCoordinator coordinator;
   final VoidCallback onOpenSettings;
+
+  /// Defaults to [downloadBlockReason]; overridable so tests can simulate a
+  /// blocked preflight without touching the real platform channel.
+  final Future<String?> Function({required int requiredBytes, required bool wifiOnly})
+  checkDownloadBlockReason;
 
   @override
   State<CaptionScreen> createState() => _CaptionScreenState();
@@ -123,6 +131,30 @@ class _CaptionScreenState extends State<CaptionScreen> {
     if (!mounted) return;
 
     if (!alreadyDownloaded) {
+      final blockReason = await widget.checkDownloadBlockReason(
+        requiredBytes: hyMt2RequiredFreeBytes,
+        wifiOnly: widget.controller.settings.wifiOnlyDownloads,
+      );
+      if (!mounted) return;
+      if (blockReason != null) {
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('无法下载翻译模型'),
+            content: Text(blockReason),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('好'),
+              ),
+            ],
+          ),
+        );
+        if (!mounted) return;
+        _runAction(() => widget.coordinator.setCaptionMode(CaptionMode.captions));
+        return;
+      }
+
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(

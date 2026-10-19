@@ -21,6 +21,13 @@ const _sileroVadFileName = 'silero_vad.onnx';
 const _sileroVadSha256 =
     '9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6';
 
+/// Free space actually needed to get through [downloadSenseVoiceModel]: the
+/// peak moment is just before extraction finishes, when the (not yet
+/// deleted) ~164MB archive and the ~240MB of files it's being extracted to
+/// coexist on disk — archive + installed size (both pinned exactly in
+/// docs/model-sources.md), plus ~10% headroom.
+const senseVoiceRequiredFreeBytes = 450000000;
+
 // GitHub Releases is unreliable from mainland China, so each file also has
 // two GitHub-release-proxy mirrors as fallbacks — both verified (via a HEAD
 // request matching the pinned size above) to serve the exact same bytes as

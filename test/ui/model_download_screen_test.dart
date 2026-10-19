@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:loud_caption/settings/app_settings.dart';
 import 'package:loud_caption/speech/sense_voice_model_download.dart';
 import 'package:loud_caption/ui/caption_theme.dart';
 import 'package:loud_caption/ui/model_download_screen.dart';
@@ -9,6 +10,24 @@ import 'package:loud_caption/ui/model_download_screen.dart';
 final _theme = ThemeData.dark().copyWith(
   extensions: const [CaptionColors.dark],
 );
+
+// The real preflight check hits a platform channel with no implementation
+// in widget tests; these tests are about download behavior, not the
+// preflight gate, so this is always clear to proceed.
+Future<String?> _alwaysClear({
+  required int requiredBytes,
+  required bool wifiOnly,
+}) async => null;
+
+class _MemorySettingsStore implements SettingsStore {
+  CaptionSettings value = CaptionSettings();
+
+  @override
+  Future<CaptionSettings> load() async => value;
+
+  @override
+  Future<void> save(CaptionSettings next) async => value = next;
+}
 
 void main() {
   testWidgets('shows download progress as events arrive', (tester) async {
@@ -21,6 +40,8 @@ void main() {
         home: ModelDownloadScreen(
           onReady: () => onReadyCalls++,
           downloadModel: () => controller.stream,
+          settingsStore: _MemorySettingsStore(),
+          checkDownloadBlockReason: _alwaysClear,
         ),
       ),
     );
@@ -74,6 +95,8 @@ void main() {
         theme: _theme,
         home: ModelDownloadScreen(
           onReady: () => onReadyCalls++,
+          settingsStore: _MemorySettingsStore(),
+          checkDownloadBlockReason: _alwaysClear,
           downloadModel: () {
             attempts++;
             if (attempts == 1) {
@@ -97,4 +120,33 @@ void main() {
     expect(onReadyCalls, 1);
     expect(find.textContaining('下载失败'), findsNothing);
   });
+
+  testWidgets(
+    'a blocked preflight check shows the reason and never starts the download',
+    (tester) async {
+      var downloadCalls = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: _theme,
+          home: ModelDownloadScreen(
+            onReady: () {},
+            settingsStore: _MemorySettingsStore(),
+            checkDownloadBlockReason: ({
+              required requiredBytes,
+              required wifiOnly,
+            }) async => '存储空间不足：需要约 450 MB，仅剩 100 MB。请清理空间后重试。',
+            downloadModel: () {
+              downloadCalls++;
+              return const Stream<ModelDownloadEvent>.empty();
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.textContaining('存储空间不足'), findsOneWidget);
+      expect(downloadCalls, 0);
+    },
+  );
 }

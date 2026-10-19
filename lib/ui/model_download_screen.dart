@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../downloads/download_preflight.dart';
+import '../settings/app_settings.dart';
 import '../speech/sense_voice_model_download.dart';
 import 'caption_theme.dart';
 import 'download_progress_bar.dart';
@@ -10,7 +12,13 @@ import 'download_progress_bar.dart';
 /// models before any of the rest of the app (which assumes they're already
 /// on disk) is constructed. See `main.dart`'s `_modelReady` gate.
 class ModelDownloadScreen extends StatefulWidget {
-  const ModelDownloadScreen({super.key, required this.onReady, this.downloadModel});
+  const ModelDownloadScreen({
+    super.key,
+    required this.onReady,
+    this.downloadModel,
+    this.settingsStore,
+    this.checkDownloadBlockReason = downloadBlockReason,
+  });
 
   /// Called once the download stream completes successfully.
   final VoidCallback onReady;
@@ -18,6 +26,17 @@ class ModelDownloadScreen extends StatefulWidget {
   /// Defaults to [downloadSenseVoiceModel]; overridable so tests can inject
   /// a fake stream without touching the network.
   final Stream<ModelDownloadEvent> Function()? downloadModel;
+
+  /// Defaults to a real [SharedPreferencesSettingsStore] — reads
+  /// `wifiOnlyDownloads` directly rather than waiting on
+  /// `CaptionController.initialize()`, since this screen renders before the
+  /// rest of the app (including the controller) is constructed.
+  final SettingsStore? settingsStore;
+
+  /// Defaults to [downloadBlockReason]; overridable so tests can simulate a
+  /// blocked preflight without touching the real platform channel.
+  final Future<String?> Function({required int requiredBytes, required bool wifiOnly})
+  checkDownloadBlockReason;
 
   @override
   State<ModelDownloadScreen> createState() => _ModelDownloadScreenState();
@@ -30,11 +49,23 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
   @override
   void initState() {
     super.initState();
-    _start();
+    unawaited(_start());
   }
 
-  void _start() {
+  Future<void> _start() async {
     setState(() => _error = null);
+    final settings = await (widget.settingsStore ?? SharedPreferencesSettingsStore())
+        .load();
+    final blockReason = await widget.checkDownloadBlockReason(
+      requiredBytes: senseVoiceRequiredFreeBytes,
+      wifiOnly: settings.wifiOnlyDownloads,
+    );
+    if (blockReason != null) {
+      if (mounted) setState(() => _error = blockReason);
+      return;
+    }
+    if (!mounted) return;
+
     (widget.downloadModel ?? downloadSenseVoiceModel)().listen(
       (event) {
         if (mounted) setState(() => _event = event);

@@ -111,6 +111,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           for (final language in translationLanguages)
             _routingTile(settings, language),
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Text('下载', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          SwitchListTile(
+            title: const Text('仅限 Wi-Fi 下载模型'),
+            subtitle: const Text('关闭时，下载前仍会检查存储空间是否足够'),
+            value: settings.wifiOnlyDownloads,
+            onChanged: _changing
+                ? null
+                : (value) =>
+                      _apply(() => widget.controller.setWifiOnlyDownloads(value)),
+          ),
         ],
       ),
     );
