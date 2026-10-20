@@ -1,0 +1,81 @@
+name: Bug report
+description: Report a reproducible problem with Loud Caption.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please use a staged reproduction and do not attach
+        private conversations or recordings of other people.
+
+  - type: input
+    id: version
+    attributes:
+      label: App version and install source
+      description: Release tag (for example v0.0.3) and whether it came from GitHub Releases or Obtainium.
+      placeholder: v0.0.3, GitHub Releases
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Phone and Android version
+      placeholder: Xiaomi 23127PN0CC, Android 15
+    validations:
+      required: true
+
+  - type: dropdown
+    id: network
+    attributes:
+      label: Network at the time
+      options:
+        - Wi-Fi
+        - Mobile data
+        - Offline
+        - Both / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What did you tap or say, in what mode, and in what order?
+      placeholder: |
+        1. Open the app with models already installed
+        2. Switch to 翻译 mode
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include any error text. A screenshot or short screen recording is helpful.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / diagnostics
+      description: Optional. Paste a locally exported crash log or relevant logcat lines.
+      render: text
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy confirmation
+      options:
+        - label: I have removed private conversation content and personal information from anything attached.
+          required: true

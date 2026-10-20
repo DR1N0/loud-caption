@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Install and troubleshooting
+    url: https://github.com/DR1N0/loud-caption#install
+    about: Read the install notes and first-run model download requirements first.
+  - name: Architecture and decisions
+    url: https://github.com/DR1N0/loud-caption/blob/main/docs/README.md
+    about: Understand the offline model and download design before proposing structural changes.

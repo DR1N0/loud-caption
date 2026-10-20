@@ -424,7 +424,3 @@ Governs the `sherpa-onnx` project/package above.
    See the License for the specific language governing permissions and
    limitations under the License.
 ```
-
-## Reference project
-
-No substantial code from the local `LiveTranscribe-Android` (MIT) reference project was copied into this repository. If that changes, its MIT attribution must be added here.

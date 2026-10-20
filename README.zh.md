@@ -1,74 +1,129 @@
-# 大字幕(Loud Caption)
+# 大字幕（Loud Caption）
 
-[English](README.md)
+<p align="center">
+  <img src="assets/icon/app_icon.png" width="96" alt="大字幕应用图标">
+</p>
 
-大字幕(英文名 Loud Caption)是一款 Android 应用,为身边的对话实时显示大字、高对比度字幕,使用设备本地的 sherpa-onnx(SenseVoice)语音识别——音频不会上传,识别过程完全离线完成。它是为听力不便、希望跟着看字幕的人设计的。首次启动需要联网下载一次约 240MB 的识别模型(见下方"安装到设备"一节),之后使用无需联网。目前支持中文和英文识别,**仅支持 Android**。系统语言为中文时,桌面图标和应用名会显示为"大字幕"。
+<p align="center">
+  <strong>Android 上的实时、离线、大字字幕。</strong><br>
+  给听得到声音、却听不清讲话的人。
+</p>
 
-这是一个个人项目,通过 [GitHub Releases](https://github.com/DR1N0/loud-caption/releases) 侧载分发,不在 Google Play 上架。
+<p align="center">
+  <a href="https://github.com/DR1N0/loud-caption/actions/workflows/ci.yml"><img src="https://github.com/DR1N0/loud-caption/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/DR1N0/loud-caption/releases/latest"><img src="https://img.shields.io/github/v/release/DR1N0/loud-caption?display_name=tag&sort=semver" alt="最新版本"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT 许可证"></a>
+</p>
+
+大字幕把身边的说话声变成手机上的大字、高对比度文本。语音识别完全在设备本地
+通过 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)（SenseVoice + Silero
+VAD）完成，音频不会上传。可选的设备端模型
+[Hy-MT2-1.8B](https://github.com/Tencent-Hunyuan/Hy-MT2) 可以在下方多显示一行
+译文，同样不经过云端。
+
+## 为什么做它
+
+最初是为外公做的。他听力下降后，声音不是变小，而是变糊；助听器能放大音量，
+却无法恢复清晰度。把对话实时变成大字，他就不用再靠猜。
+
+这个场景决定了优先级：**低延迟、看得清、离线可用、少点几下**。其他东西都排在
+后面。
 
 ## 功能
 
-- 全屏、高对比度实时字幕,可调整字号(16–80px),新字幕会自动滚动到可见范围内,上滑回看历史字幕时会暂停自动滚动
-- 离线中文/英文/日语/韩语/粤语语音识别,自动判断语种,无需手动切换
-- 设备本地翻译(通过 llama.cpp 运行 Hy-MT2-1.8B,绝不经过云端),可配置单一目标语言,也可按源语言分别路由——粤语在翻译时会和普通话归为同一语言,因为两者转写出来的文字相同
-- 横竖屏锁定;控制栏会自适应排布——竖屏一排、横屏变成侧边栏,尽量把屏幕让给字幕
-- 不保存音频或字幕历史,仅保留你的显示和翻译相关偏好设置(字号、横竖屏、昼夜主题、翻译模式/目标语言)
-- 旋屏、调整字号、使用应用内设置页时识别不会中断;只有真正退到后台、锁屏,或进入系统设置时才会停止
+- **实时字幕**：中文、英文、日语、韩语、粤语，自动判断语种。
+- **大字、高对比度**：16–80 px，自动滚动；上滑可以回看之前的字幕。
+- **设备端翻译**：翻译模式使用统一目标语言；互译模式按来源语言分别设置目标。
+- **横屏侧栏、昼夜主题、设置页**，切换字号/方向/设置时识别不中断。
+- **模型只下载一次，之后离线可用。** 联网只用于下载经过固定校验的模型文件。
 
-打包了哪些内容及各自的许可证,见 [`docs/model-sources.md`](docs/model-sources.md) 和 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md);完整的设计过程见 [`docs/superpowers/specs/`](docs/superpowers/specs/)。
+<!--
+## 截图
 
-## 开发者指南
+待 docs/assets/ 加入以下文件后补上截图表格：
+captions-portrait.png、translation-mode.png、translate-custom.png、
+landscape-large-font.png、first-run-mobile-data.png。
+-->
 
-### 环境要求
+## 安装
 
-- Flutter SDK(已用 3.41.7 验证)
-- 带 Android SDK 的 Android Studio(需要 `adb`、`aapt`、`apksigner`,以及一个模拟器或真机),外加 NDK 和 CMake 组件——翻译插件在构建时会从源码编译 llama.cpp
-- Python 3
-- 一个你所在网络 TLS 信任的 JDK 17(`Makefile` 默认指向本机的 Zulu 17;如果路径不同,用 `JAVA17_HOME` 覆盖)
-- `make`
-- 运行 Android 8.0(API 26)及以上版本的设备或模拟器——因翻译插件的最低要求从 API 24 提高到了 API 26
+大字幕通过侧载 APK 分发，不上架 Google Play。
 
-### 常用命令
+### Obtainium（推荐）
 
-```bash
-make test          # flutter test(单元 + widget 测试）
-make analyze       # flutter analyze
-make apk-debug     # 构建 build/app/outputs/apk/debug/app-debug.apk
-make apk-release   # 构建 build/app/outputs/apk/release/app-release.apk
-make apk           # apk-release 的别名
-make check         # pub-get + analyze + test（完整检查）
-make clean         # flutter clean
+安装 [Obtainium](https://github.com/ImranR98/Obtainium)，把本仓库地址添加为
+来源，之后跟随 GitHub Release 更新：
+
+```text
+https://github.com/DR1N0/loud-caption
 ```
 
-提交 PR 或准备发布前先跑一遍 `make check`。
+### APK
 
-### 安装到设备
+从[最新 Release](https://github.com/DR1N0/loud-caption/releases/latest) 下载
+`app-release.apk` 并打开。首次安装需要允许浏览器或文件管理器“安装未知应用”。
+
+- Android 8.0（API 26）及以上，arm64-v8a。
+- APK 约 52 MB。首次启动会下载并校验约 240 MB 的识别/降噪模型；之后第一次
+  进入翻译模式，会再下载约 1.08 GB 的翻译模型。
+- 下载支持断点续传。未连接 Wi-Fi 时会提示将使用移动数据，确认后才继续。
+- 模型安装完成后，识别和翻译都不需要网络。
+
+## 实现概要
+
+- **识别/降噪**：SenseVoice int8 + Silero VAD，通过 sherpa-onnx 在本地运行。
+  VAD 切分麦克风音频；说话过程中做部分结果重解码，只有最终片段会成为已提交字幕。
+- **翻译**：Hy-MT2-1.8B Q4_K_M 通过 llama.cpp 在 CPU 上运行。只翻译已提交的
+  字幕行，避免翻译积压拖住实时字幕。
+- **模型分发**：固定 URL 和 SHA-256、镜像回退、`.part` 断点续传、stall 检测、
+  原子安装。精确大小与许可证见 [docs/model-sources.md](docs/model-sources.md)。
+
+## 隐私
+
+- 没有账号、统计、遥测，也没有云端识别/翻译。
+- 音频、识别文字和译文都不会被保存或上传。
+- 唯一的网络请求是模型下载；release manifest 中的 `INTERNET` 和
+  `ACCESS_NETWORK_STATE` 只用于这个目的。
+- 崩溃日志只保存在本机、有大小上限，可在设置中手动复制或清除，不会自动上传。
+
+## 现状
+
+已在两台 Android 手机（包括外公的手机）上做过正常对话测试。使用中没有观察到
+明显发热或耗电问题，表现与其他持续运行的 App 相当；这不是正式 benchmark。
+不同口音、设备和长时间使用下的准确率，仍需要更多真实反馈。翻译为可选功能，
+目前仅支持 Android；iOS、云同步、字幕历史和账号系统不在范围内。
+
+## 构建与测试
+
+需要 Flutter 3.47.x、JDK 17 和 Android SDK（platform 36、build-tools
+36.0.0、NDK 28.2.13676358）。
 
 ```bash
-make install-debug     # 构建 + adb install -r 安装 debug 包
-make install-release   # 构建 + adb install -r 安装 release 包
+flutter pub get
+flutter analyze
+flutter test
+flutter build apk --release --target-platform android-arm64 --split-per-abi
 ```
 
-首次启动时,应用会先下载并校验约 240 MB 的语音识别模型(SenseVoice + Silero VAD),下载完成前无法使用——请确保有足够的时间、存储空间和网络连接。下载完成后,点击 **开始** 并同意 Android 弹出的麦克风权限请求;此后使用应用不再需要联网。之后如果切换到翻译模式,会触发另一次独立的按需下载(约 1.08 GB,Hy-MT2——见 [`docs/model-sources.md`](docs/model-sources.md));不需要翻译功能可以跳过。两次下载开始前都会先检查存储空间是否足够,不够会直接提示而不会开始下载;同时会检测当前是否连接 Wi-Fi,未连接时会提示将使用移动数据下载,确认后才会继续。
+提交 PR 前请先看 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-### 签名说明
+## 文档
 
-debug 包和 release 包都用 `android/app/release-keystore.jks` 签名——这是为本项目专门生成、**刻意提交进仓库**的密钥,不是秘密,也不是 Gradle 默认的、每台机器各自生成的 Debug 签名。debug 包刻意使用这个相同的身份(而不是默认的 debug key),这样 debug 包和 release 包之间互相安装升级时不需要先卸载。本项目只通过 GitHub Release 分发,从不上架 Play(Play 本身也会拒绝 Debug 签名的上传),所以"每台构建机器、每种构建类型签名都一致"比"一把可能丢失的私钥"更重要。
+- [架构](docs/architecture.md)
+- [架构决策（ADR）](docs/adr/)
+- [模型来源、大小、校验和与许可证](docs/model-sources.md)
+- [测试与发布检查清单](docs/testing.md)
+- [文档索引](docs/README.md)
 
-这样做的代价是:因为密钥是公开的,任何拿到这个仓库的人都能做出一个 Android 会认可为"合法更新"的 APK。对一个非商业化的个人项目,这是可以接受的风险——但如果你的项目有真实的对手方、或考虑上架 Play,**不要**照搬这个做法,应该自己生成密钥、不纳入版本控制,并私下妥善备份。
+带日期的实现计划不放进仓库：过期的计划比没有计划更糟。
 
-### 隐私
+## 许可证
 
-- release 包的 manifest 申请了 `RECORD_AUDIO`、`INTERNET` 和 `ACCESS_NETWORK_STATE`,没有存储、悬浮窗或前台服务权限。`INTERNET` 权限仅用于首次启动时下载经过校验的指定模型文件(见 [`docs/model-sources.md`](docs/model-sources.md)),应用不会发起其他任何网络请求。`ACCESS_NETWORK_STATE`(普通权限,无需弹窗授权)仅用于在模型下载前判断当前是否连接 Wi-Fi,以便在未连接时提示将使用移动数据并征求确认。
-- 没有发现任何由本应用代码发起的语音上传路径;识别完全基于下载到本地的 sherpa-onnx(SenseVoice)和 Silero VAD 模型在设备本地完成,音频和识别出的文字都不会被发送到任何地方。这一点未经网络抓包独立验证。
-- 崩溃日志只写入本地一个大小受限的文件(不会上传),可在"设置 → 诊断"中查看或清除,需要反馈问题时可手动复制分享。
+本仓库代码使用 [MIT License](LICENSE)。
 
-### 现状
+模型文件不在本仓库中，遵循各自许可证：SenseVoice 权重使用 FunASR Model Open
+Source License Agreement v1.1，Silero VAD 为 MIT，Hy-MT2 为 Apache-2.0。详见
+[docs/model-sources.md](docs/model-sources.md) 和
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-本项目已将语音识别引擎从 Vosk 迁移到 sherpa-onnx(SenseVoice 语音识别 + Silero VAD)。SenseVoice 的自动语种识别("auto"模式)实测已经足够准确——没有出现中文被误判为英文的情况——因此手动切换语言的界面被移除。ASR 模型改为首次启动时下载,不再打包进 APK;ASR 和翻译模型的下载如果中途中断,都支持断点续传,并且在主源之外还提供了对中国大陆网络更友好的镜像(GitHub 代理、ModelScope、hf-mirror.com)作为备用。
-
-设备本地翻译(通过 llama.cpp 运行 Hy-MT2-1.8B,绝不经过云端)已接入实时字幕流程,并已在真机上完整验证——翻译模式和互译模式下都实测翻译了几十句。目前只有已提交(最终)的字幕行才会触发翻译;此前曾对尚未提交的部分识别结果做投机性翻译以追求伪流式效果,但真机测试发现设备端推理的延迟跟不上正常语速,因此这个机制已被移除。
-
-真机测试还发现了本项目用于翻译推理的第三方库 `llama_flutter_android` 的两个 bug:一个是 llama.cpp 自身 RMSNorm 计算核里的原生崩溃(移除上述投机翻译机制后,顺带消除了触发它的"取消后立即重新生成"竞态,目前未再复现);另一个是流式输出时错误处理跨 token 边界的多字节 UTF-8 字符,导致中日韩文字出现乱码。两个问题均已修复并验证,第二个已提交 PR 到上游仓库([dragneel2074/Llama-Flutter#2](https://github.com/dragneel2074/Llama-Flutter/pull/2)),在其合并之前本项目依赖一个带有该修复的 fork(见 `pubspec.yaml`)。
-
-前台恢复行为、同时运行语音识别和翻译对电量/发热的影响,以及不同设备、不同口音下的识别/翻译准确率,除了本项目实测过的这一台设备外均未独立验证。可下载语言包、云同步、字幕历史和 iOS 支持仍不在当前范围内。
+[English README](README.md)

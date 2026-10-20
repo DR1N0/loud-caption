@@ -1,0 +1,42 @@
+name: Feature request
+description: Suggest an improvement that fits the project's offline, focused scope.
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Loud Caption deliberately stays small and offline. Before proposing a
+        feature, check whether it makes live captions easier to follow without
+        adding accounts, cloud dependencies, or a large settings surface.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the real situation, not just the feature.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Including doing nothing, or using an existing Android accessibility feature.
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This works fully offline (no account, cloud ASR, or cloud translation).
+          required: true
+        - label: This keeps the main caption screen simple and does not add unnecessary settings.
+          required: true
