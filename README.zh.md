@@ -37,13 +37,20 @@ VAD）完成，音频不会上传。可选的设备端模型
 - **横屏侧栏、昼夜主题、设置页**，切换字号/方向/设置时识别不中断。
 - **模型只下载一次，之后离线可用。** 联网只用于下载经过固定校验的模型文件。
 
-<!--
 ## 截图
 
-待 docs/assets/ 加入以下文件后补上截图表格：
-captions-portrait.png、translation-mode.png、translate-custom.png、
-landscape-large-font.png、first-run-mobile-data.png。
--->
+<p align="center">
+  <img src="docs/assets/captions-portrait.jpg" width="240" alt="竖屏实时字幕">
+  <img src="docs/assets/translation-mode.jpg" width="240" alt="翻译模式">
+  <img src="docs/assets/translate-custom.jpg" width="240" alt="互译模式">
+</p>
+<p align="center"><sub>字幕 · 翻译 · 互译</sub></p>
+
+<p align="center">
+  <img src="docs/assets/landscape-large-font.jpg" width="520" alt="横屏大字号字幕">
+  <img src="docs/assets/first-run-mobile-data.jpg" width="240" alt="首次下载的移动数据提示">
+</p>
+<p align="center"><sub>横屏大字号 · 首次下载的移动数据提示</sub></p>
 
 ## 安装
 

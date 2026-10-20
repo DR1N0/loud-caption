@@ -45,13 +45,21 @@ operation, and as few taps as possible**. Everything else is secondary.
 - **Download once, then work offline.** The app needs the network only to fetch
   its pinned, checksum-verified model files.
 
-<!--
 ## Screenshots
 
-Screenshot table goes here once docs/assets/ contains:
-captions-portrait.png, translation-mode.png, translate-custom.png,
-landscape-large-font.png, first-run-mobile-data.png.
--->
+<p align="center">
+  <img src="docs/assets/captions-portrait.jpg" width="240" alt="Live captions in portrait mode">
+  <img src="docs/assets/translation-mode.jpg" width="240" alt="Translation mode with translated lines">
+  <img src="docs/assets/translate-custom.jpg" width="240" alt="Per-language translation routing">
+</p>
+<p align="center"><sub>Captions · Translation · Per-language routing</sub></p>
+
+<p align="center">
+  <img src="docs/assets/landscape-large-font.jpg" width="520" alt="Landscape captions at a large font size">
+  <img src="docs/assets/first-run-mobile-data.jpg" width="240" alt="First-run mobile-data confirmation">
+</p>
+<p align="center"><sub>Landscape with a large font · First-run mobile-data prompt</sub></p>
+
 
 ## Install
 
