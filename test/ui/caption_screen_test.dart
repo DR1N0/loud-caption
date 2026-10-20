@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:loud_caption/downloads/download_preflight.dart';
 import 'package:loud_caption/lifecycle/screen_awake.dart';
 import 'package:loud_caption/main.dart';
 import 'package:loud_caption/permissions/microphone_access.dart';
@@ -15,11 +16,9 @@ import '../translation/fake_translation_engine.dart';
 // The real preflight check hits a platform channel with no implementation
 // in widget tests; these tests are about the translation-download flow
 // itself, not the preflight gate (covered separately), so this is always
-// clear to proceed.
-Future<String?> _alwaysClear({
-  required int requiredBytes,
-  required bool wifiOnly,
-}) async => null;
+// clear to proceed on Wi-Fi.
+Future<DownloadPreflight> _alwaysClear({required int requiredBytes}) async =>
+    const DownloadPreflight(isWifi: true);
 
 void main() {
   testWidgets('requests microphone access only after tapping 开始', (
@@ -315,10 +314,11 @@ void main() {
     'dialog, and returns the mode to 字幕',
     (tester) async {
       final fixture = _Fixture(
-        checkDownloadBlockReason: ({
-          required requiredBytes,
-          required wifiOnly,
-        }) async => '存储空间不足：需要约 1200 MB，仅剩 100 MB。请清理空间后重试。',
+        preflightCheck: ({required requiredBytes}) async =>
+            const DownloadPreflight(
+              isWifi: true,
+              blockReason: '存储空间不足：需要约 1200 MB，仅剩 100 MB。请清理空间后重试。',
+            ),
       );
       fixture.translation.modelDownloaded = false;
       await fixture.pump(tester);
@@ -334,6 +334,39 @@ void main() {
 
       expect(fixture.translation.isLoaded, isFalse);
       expect(fixture.store.value.captionMode, CaptionMode.captions);
+      await fixture.close(tester);
+    },
+  );
+
+  testWidgets(
+    'a non-Wi-Fi translation download warns about mobile data and continues '
+    'on confirm',
+    (tester) async {
+      final fixture = _Fixture(
+        preflightCheck: ({required requiredBytes}) async =>
+            const DownloadPreflight(isWifi: false),
+      );
+      fixture.translation.modelDownloaded = false;
+      await fixture.pump(tester);
+
+      await tester.tap(find.bySemanticsLabel('切换模式'));
+      await fixture.advance(tester);
+
+      expect(find.text('使用移动数据下载翻译模型？'), findsOneWidget);
+      expect(find.textContaining('当前未连接 Wi-Fi'), findsOneWidget);
+      expect(find.text('继续下载'), findsOneWidget);
+      expect(fixture.translation.isLoaded, isFalse);
+
+      await tester.tap(find.text('继续下载'));
+      await fixture.advance(tester);
+
+      expect(find.text('正在下载翻译模型…'), findsOneWidget);
+
+      fixture.translation.completeLoad();
+      await fixture.advance(tester);
+
+      expect(fixture.translation.isLoaded, isTrue);
+      expect(fixture.store.value.captionMode, CaptionMode.translateAll);
       await fixture.close(tester);
     },
   );
@@ -428,7 +461,7 @@ class _Fixture {
   _Fixture({
     MicAccessState access = MicAccessState.granted,
     SetOrientations? setOrientations,
-    this.checkDownloadBlockReason = _alwaysClear,
+    this.preflightCheck = _alwaysClear,
   }) : microphone = _FakeMicrophoneAccess(access),
        store = _MemorySettingsStore(CaptionSettings()),
        orientationManager = OrientationManager(
@@ -441,8 +474,7 @@ class _Fixture {
   final _FakeMicrophoneAccess microphone;
   final _MemorySettingsStore store;
   final OrientationManager orientationManager;
-  final Future<String?> Function({required int requiredBytes, required bool wifiOnly})
-  checkDownloadBlockReason;
+  final DownloadPreflightCheck preflightCheck;
 
   Future<void> pump(WidgetTester tester) async {
     await tester.pumpWidget(
@@ -454,7 +486,7 @@ class _Fixture {
         screenAwake: awake,
         orientationManager: orientationManager,
         isModelReady: () async => true,
-        checkDownloadBlockReason: checkDownloadBlockReason,
+        preflightCheck: preflightCheck,
       ),
     );
     await advance(tester);

@@ -20,17 +20,17 @@ class CaptionScreen extends StatefulWidget {
     required this.controller,
     required this.coordinator,
     required this.onOpenSettings,
-    this.checkDownloadBlockReason = downloadBlockReason,
+    this.preflightCheck = checkDownloadPreflight,
   });
 
   final CaptionController controller;
   final CaptionLifecycleCoordinator coordinator;
   final VoidCallback onOpenSettings;
 
-  /// Defaults to [downloadBlockReason]; overridable so tests can simulate a
-  /// blocked preflight without touching the real platform channel.
-  final Future<String?> Function({required int requiredBytes, required bool wifiOnly})
-  checkDownloadBlockReason;
+  /// Defaults to [checkDownloadPreflight]; overridable so tests can simulate
+  /// a blocked download or a non-Wi-Fi connection without touching the real
+  /// platform channel.
+  final DownloadPreflightCheck preflightCheck;
 
   @override
   State<CaptionScreen> createState() => _CaptionScreenState();
@@ -131,11 +131,11 @@ class _CaptionScreenState extends State<CaptionScreen> {
     if (!mounted) return;
 
     if (!alreadyDownloaded) {
-      final blockReason = await widget.checkDownloadBlockReason(
+      final preflight = await widget.preflightCheck(
         requiredBytes: hyMt2RequiredFreeBytes,
-        wifiOnly: widget.controller.settings.wifiOnlyDownloads,
       );
       if (!mounted) return;
+      final blockReason = preflight.blockReason;
       if (blockReason != null) {
         await showDialog<void>(
           context: context,
@@ -155,12 +155,18 @@ class _CaptionScreenState extends State<CaptionScreen> {
         return;
       }
 
+      final networkNotice = preflight.isWifi
+          ? ''
+          : '当前未连接 Wi-Fi，将使用移动数据下载。连接 Wi-Fi 可避免消耗流量。\n\n';
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('下载翻译模型'),
-          content: const Text(
+          title: Text(
+            preflight.isWifi ? '下载翻译模型' : '使用移动数据下载翻译模型？',
+          ),
+          content: Text(
             '首次使用翻译需要下载约 1.08 GB 的翻译模型，确定现在下载吗？\n\n'
+            '$networkNotice'
             '下载过程中请保持本 App 在前台，切到后台可能被系统限制网络导致中断'
             '（中断后重新进入会从断点继续，无需重新下载）。',
           ),
@@ -171,7 +177,7 @@ class _CaptionScreenState extends State<CaptionScreen> {
             ),
             FilledButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('下载'),
+              child: Text(preflight.isWifi ? '下载' : '继续下载'),
             ),
           ],
         ),

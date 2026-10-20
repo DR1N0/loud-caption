@@ -39,7 +39,7 @@ class CaptionApp extends StatefulWidget {
     this.orientationManager,
     this.isModelReady,
     this.downloadModel,
-    this.checkDownloadBlockReason = downloadBlockReason,
+    this.preflightCheck = checkDownloadPreflight,
   });
 
   final SpeechEngine? engine;
@@ -57,10 +57,9 @@ class CaptionApp extends StatefulWidget {
   /// unchanged.
   final Stream<ModelDownloadEvent> Function()? downloadModel;
 
-  /// Defaults to [downloadBlockReason]; forwarded to [ModelDownloadScreen]
+  /// Defaults to [checkDownloadPreflight]; forwarded to [ModelDownloadScreen]
   /// and [CaptionScreen] unchanged.
-  final Future<String?> Function({required int requiredBytes, required bool wifiOnly})
-  checkDownloadBlockReason;
+  final DownloadPreflightCheck preflightCheck;
 
   @override
   State<CaptionApp> createState() => _CaptionAppState();
@@ -182,8 +181,7 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
       home = ModelDownloadScreen(
         onReady: _onModelDownloaded,
         downloadModel: widget.downloadModel,
-        settingsStore: widget.settingsStore,
-        checkDownloadBlockReason: widget.checkDownloadBlockReason,
+        preflightCheck: widget.preflightCheck,
       );
     } else if (!_ready) {
       home = const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -194,7 +192,7 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
         controller: _controller,
         coordinator: _coordinator,
         onOpenSettings: _openSettings,
-        checkDownloadBlockReason: widget.checkDownloadBlockReason,
+        preflightCheck: widget.preflightCheck,
       );
     }
     return MaterialApp(

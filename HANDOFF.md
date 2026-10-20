@@ -1,5 +1,15 @@
 # Handoff — 2026-10-20, mirror reachability + download stall fixes
 
+> **Update (2026-10-20, later):** the Wi-Fi-only setting was removed. Both
+> download entry points (first launch and switching into a translation mode)
+> now run a preflight that always checks disk space and checks whether the
+> current connection is Wi-Fi; on a non-Wi-Fi connection they explain that the
+> download will use mobile data and require confirmation. The extraction phase
+> no longer shows a frozen `0.0 MB`: it shows an indeterminate "正在解压…"
+> state until real progress exists, then reports bytes as the intermediate tar
+> grows. `flutter analyze` is clean and all 172 tests pass. The stale-label
+> question below is therefore superseded.
+
 Written because the user is switching network environments and wants to
 resume cleanly elsewhere. Covers: what's done and verified, what's done but
 only partially verified, and what's still actively broken/open.

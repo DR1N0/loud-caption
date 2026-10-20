@@ -6,9 +6,9 @@
          anything — recognized speech and captions never leave the device. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Normal-protection, no runtime prompt. Lets the app check whether
-         it's on Wi-Fi before a large model download if the user has
-         enabled "仅限 Wi-Fi 下载模型" in Settings — never used for
-         anything else. -->
+         it's on Wi-Fi before a large model download, so it can warn that
+         the download will use mobile data and ask for confirmation —
+         never used for anything else. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application

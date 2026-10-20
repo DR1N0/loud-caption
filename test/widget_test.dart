@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:loud_caption/downloads/download_preflight.dart';
 import 'package:loud_caption/lifecycle/screen_awake.dart';
 import 'package:loud_caption/main.dart';
 import 'package:loud_caption/permissions/microphone_access.dart';
@@ -29,10 +30,8 @@ void main() {
           orientationManager: OrientationManager(setOrientations: (_) async {}),
           isModelReady: () async => false,
           downloadModel: () => downloadController.stream,
-          checkDownloadBlockReason: ({
-            required requiredBytes,
-            required wifiOnly,
-          }) async => null,
+          preflightCheck: ({required requiredBytes}) async =>
+              const DownloadPreflight(isWifi: true),
         ),
       );
       await tester.pump();

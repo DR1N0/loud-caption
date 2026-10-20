@@ -28,6 +28,12 @@ const _sileroVadSha256 =
 /// docs/model-sources.md), plus ~10% headroom.
 const senseVoiceRequiredFreeBytes = 450000000;
 
+/// Installed size of the two files extracted from the archive
+/// (`model.int8.onnx` 239,233,841 bytes + `tokens.txt` 315,894 bytes), pinned
+/// in docs/model-sources.md. Used as the denominator for extraction progress;
+/// the archive contains no other files the app installs.
+const _senseVoiceInstalledBytes = 239549735;
+
 // GitHub Releases is unreliable from mainland China, so each file also has
 // two GitHub-release-proxy mirrors as fallbacks — both verified (via a HEAD
 // request matching the pinned size above) to serve the exact same bytes as
@@ -113,14 +119,13 @@ Stream<ModelDownloadEvent> downloadSenseVoiceModel({
   final archivePath = '${scratchDir.path}/$_senseVoiceArchiveName';
   final extractDir = '${scratchDir.path}/sense-voice-extract';
 
-  await for (final progress
-      in downloadAndVerify(
-        DownloadSpec(
-          urls: senseVoiceArchiveUrls,
-          destinationPath: archivePath,
-          sha256: senseVoiceArchiveSha256,
-        ),
-      )) {
+  await for (final progress in downloadAndVerify(
+    DownloadSpec(
+      urls: senseVoiceArchiveUrls,
+      destinationPath: archivePath,
+      sha256: senseVoiceArchiveSha256,
+    ),
+  )) {
     yield ModelDownloadEvent(
       phase: ModelDownloadPhase.downloadingAsr,
       receivedBytes: progress.receivedBytes,
@@ -132,26 +137,24 @@ Stream<ModelDownloadEvent> downloadSenseVoiceModel({
   yield const ModelDownloadEvent(
     phase: ModelDownloadPhase.extracting,
     receivedBytes: 0,
+    totalBytes: _senseVoiceInstalledBytes,
   );
-  await Isolate.run(
-    () => _extractSenseVoiceFiles(
-      archivePath: archivePath,
-      extractDir: extractDir,
-      destinationModelPath: destinationPaths.senseVoiceModel,
-      destinationTokensPath: destinationPaths.senseVoiceTokens,
-    ),
+  yield* _extractWithProgress(
+    archivePath: archivePath,
+    extractDir: extractDir,
+    destinationModelPath: destinationPaths.senseVoiceModel,
+    destinationTokensPath: destinationPaths.senseVoiceTokens,
   );
   await File(archivePath).delete();
   await Directory(extractDir).delete(recursive: true);
 
-  await for (final progress
-      in downloadAndVerify(
-        DownloadSpec(
-          urls: sileroVadUrls,
-          destinationPath: destinationPaths.sileroVadModel,
-          sha256: sileroVadSha256,
-        ),
-      )) {
+  await for (final progress in downloadAndVerify(
+    DownloadSpec(
+      urls: sileroVadUrls,
+      destinationPath: destinationPaths.sileroVadModel,
+      sha256: sileroVadSha256,
+    ),
+  )) {
     yield ModelDownloadEvent(
       phase: ModelDownloadPhase.downloadingVad,
       receivedBytes: progress.receivedBytes,
@@ -161,17 +164,131 @@ Stream<ModelDownloadEvent> downloadSenseVoiceModel({
   }
 }
 
+/// Runs [Isolate.run] from a scope that captures only sendable strings — the
+/// extraction must not close over the progress controller or its timer.
+Future<void> _runExtraction({
+  required String archivePath,
+  required String extractDir,
+  required String destinationModelPath,
+  required String destinationTokensPath,
+}) => Isolate.run(
+  () => _extractSenseVoiceFiles(
+    archivePath: archivePath,
+    extractDir: extractDir,
+    destinationModelPath: destinationModelPath,
+    destinationTokensPath: destinationTokensPath,
+  ),
+);
+
+/// Extracts the archive in a background isolate while polling the temporary
+/// tar file for progress. Pure-Dart bzip2 decoding is the slow phase (tens of
+/// seconds on a phone CPU), and `package:archive` exposes no callback for it,
+/// so the growing intermediate tar is the only observable progress. Polling
+/// it keeps the UI from sitting on a stale `0.0 MB` while decoding runs.
+Stream<ModelDownloadEvent> _extractWithProgress({
+  required String archivePath,
+  required String extractDir,
+  required String destinationModelPath,
+  required String destinationTokensPath,
+}) async* {
+  final progress = StreamController<ModelDownloadEvent>();
+  var highWaterMark = 0;
+  var polling = false;
+
+  final timer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+    if (polling) return;
+    polling = true;
+    unawaited(() async {
+      try {
+        final bytes = await _directorySizeBytes(extractDir);
+        if (bytes > highWaterMark) highWaterMark = bytes;
+        if (!progress.isClosed) {
+          progress.add(
+            ModelDownloadEvent(
+              phase: ModelDownloadPhase.extracting,
+              receivedBytes: highWaterMark > _senseVoiceInstalledBytes
+                  ? _senseVoiceInstalledBytes
+                  : highWaterMark,
+              totalBytes: _senseVoiceInstalledBytes,
+            ),
+          );
+        }
+      } finally {
+        polling = false;
+      }
+    }());
+  });
+
+  final extraction = _runExtraction(
+    archivePath: archivePath,
+    extractDir: extractDir,
+    destinationModelPath: destinationModelPath,
+    destinationTokensPath: destinationTokensPath,
+  );
+  unawaited(
+    extraction.then(
+      (_) {
+        timer.cancel();
+        if (!progress.isClosed) progress.close();
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        timer.cancel();
+        unawaited(
+          _deleteDirectoryQuietly(extractDir).then((_) {
+            if (!progress.isClosed) {
+              progress.addError(error, stackTrace);
+              progress.close();
+            }
+          }),
+        );
+      },
+    ),
+  );
+
+  yield* progress.stream;
+  await extraction;
+}
+
+Future<void> _deleteDirectoryQuietly(String path) async {
+  try {
+    await Directory(path).delete(recursive: true);
+  } on FileSystemException {
+    // A failed extraction must not leave a 240 MB intermediate tar behind,
+    // but a cleanup failure is not worth masking the real extraction error.
+  }
+}
+
+/// Total size of every regular file currently under [path]; missing paths and
+/// files that disappear mid-scan contribute nothing.
+Future<int> _directorySizeBytes(String path) async {
+  var total = 0;
+  try {
+    await for (final entity in Directory(
+      path,
+    ).list(recursive: true, followLinks: false)) {
+      if (entity is! File) continue;
+      try {
+        total += await entity.length();
+      } on FileSystemException {
+        // The extractor may be replacing this entry; the next poll sees it.
+      }
+    }
+  } on FileSystemException {
+    // The extraction directory may not exist until the first file is written.
+  }
+  return total;
+}
+
 /// Runs on a background isolate (via [Isolate.run] in
 /// [downloadSenseVoiceModel]) since tar/bzip2 decoding is synchronous and
-/// would otherwise block the UI isolate for the several seconds a ~240MB
+/// would otherwise block the UI isolate for the tens of seconds a ~240MB
 /// archive can take to extract.
 ///
-/// Extracts the whole archive to [extractDir] (via `package:archive`'s
-/// `extractFileToDisk`, which streams via file-backed `InputFileStream`
-/// views rather than loading the archive into memory — safe for a file this
-/// size) and then moves just the two files the app needs out to their final
-/// destinations, mirroring `scripts/fetch_models.py`'s
-/// basename-based matching rather than assuming a specific internal
+/// Decodes the `.tar.bz2` into a temporary tar under [extractDir] (written
+/// incrementally, which is what the caller polls for progress), then reads
+/// that tar and writes only the two files the app needs to their fixed
+/// destinations. Matching is by basename, mirroring
+/// `scripts/fetch_models.py`, rather than assuming a specific internal
 /// directory layout for the archive.
 Future<void> _extractSenseVoiceFiles({
   required String archivePath,
@@ -179,23 +296,53 @@ Future<void> _extractSenseVoiceFiles({
   required String destinationModelPath,
   required String destinationTokensPath,
 }) async {
-  await extractFileToDisk(archivePath, extractDir);
+  await Directory(extractDir).create(recursive: true);
+  final tarPath = '$extractDir/archive.tar';
+
+  final compressedInput = InputFileStream(archivePath);
+  final tarOutput = OutputFileStream(tarPath);
+  try {
+    BZip2Decoder().decodeBuffer(compressedInput, output: tarOutput);
+  } finally {
+    await compressedInput.close();
+    await tarOutput.close();
+  }
 
   final wanted = {
     'model.int8.onnx': destinationModelPath,
     'tokens.txt': destinationTokensPath,
   };
   final found = <String>{};
-  await for (final entity
-      in Directory(extractDir).list(recursive: true, followLinks: false)) {
-    if (entity is! File) continue;
-    final basename = entity.uri.pathSegments.last;
-    final destinationPath = wanted[basename];
-    if (destinationPath == null) continue;
-    await File(destinationPath).parent.create(recursive: true);
-    await entity.rename(destinationPath);
-    found.add(basename);
+  final tarInput = InputFileStream(tarPath);
+  try {
+    final archive = TarDecoder().decodeBuffer(tarInput);
+    for (final file in archive.files) {
+      if (!file.isFile) continue;
+      final basename = file.name.split('/').last;
+      final destinationPath = wanted[basename];
+      if (destinationPath == null) continue;
+      await File(destinationPath).parent.create(recursive: true);
+      // Write beside the destination and rename only once complete, so an
+      // interrupted extraction can never leave a truncated file at a path
+      // `isSenseVoiceModelReady` treats as installed.
+      final partPath = '$destinationPath.part';
+      final output = OutputFileStream(partPath);
+      try {
+        file.writeContent(output);
+      } finally {
+        await output.close();
+      }
+      final destinationFile = File(destinationPath);
+      if (await destinationFile.exists()) await destinationFile.delete();
+      await File(partPath).rename(destinationPath);
+      found.add(basename);
+    }
+    await archive.clear();
+  } finally {
+    await tarInput.close();
   }
+
+  await File(tarPath).delete();
 
   final missing = wanted.keys.toSet().difference(found);
   if (missing.isNotEmpty) {

@@ -126,7 +126,7 @@ void main() {
       // normally do genuine dart:io work, which testWidgets()'s zone doesn't
       // let resolve on its own — matching this project's own established DI
       // pattern for exactly this reason (see ModelDownloadScreen.downloadModel,
-      // CaptionScreen.checkDownloadBlockReason). The real file-backed
+      // CaptionScreen.preflightCheck). The real file-backed
       // implementation is covered separately in
       // test/diagnostics/crash_log_test.dart.
       var log = 'a recorded crash';
