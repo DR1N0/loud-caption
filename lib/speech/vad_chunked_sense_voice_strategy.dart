@@ -202,7 +202,12 @@ class VadChunkedSenseVoiceStrategy implements RecognitionStrategy {
   void applyConfig(Map<String, String> values) {
     _validateLanguageConfig(values, configOptions);
     final language = values['language'];
-    if (language != null) _languageOverride = language;
+    if (language == null) return;
+    _languageOverride = language;
+    // If recognition is already running, update the loaded recognizer in
+    // place. The message queues behind any in-flight decode and applies to
+    // the next segment; no model reload or capture restart is needed.
+    _asrSendPort?.send(_AsrSetLanguage(language));
   }
 
   @override

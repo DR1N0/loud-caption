@@ -307,16 +307,22 @@ void main() {
     );
 
     test(
-      'setRecognitionLanguage persists and is used the next time recognition '
-      'starts — not a live hot-swap of an already-running session',
+      'setRecognitionLanguage persists, applies to the running engine, and is '
+      'used by the next start',
       () async {
         await captions.initialize();
+        await captions.start();
+        expect(engine.started, ['auto']);
+
         await captions.setRecognitionLanguage('zh');
         expect(store.value.recognitionLanguage, 'zh');
+        expect(engine.appliedConfigs, [
+          {'language': 'zh'},
+        ]);
 
+        await captions.stop();
         await captions.start();
-
-        expect(engine.started, ['zh']);
+        expect(engine.started, ['auto', 'zh']);
       },
     );
 
@@ -457,5 +463,9 @@ class FakeSpeechEngine implements SpeechEngine {
   @override
   Map<String, String> get currentConfig => const {};
   @override
-  Future<void> applyConfig(Map<String, String> values) async {}
+  Future<void> applyConfig(Map<String, String> values) async {
+    appliedConfigs.add(Map<String, String>.of(values));
+  }
+
+  final List<Map<String, String>> appliedConfigs = [];
 }
