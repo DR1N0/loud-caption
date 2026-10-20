@@ -34,10 +34,20 @@ void main() {
 
     expect(settings.captionMode, CaptionMode.captions);
     expect(settings.translateAllTarget, 'en');
+    expect(settings.appLanguage, AppLanguage.system);
     expect(settings.themeMode, AppThemeMode.dark);
     for (final language in translationLanguages) {
       expect(settings.routingTargetFor(language), language);
     }
+  });
+
+  test('app language can be changed and invalid stored values fall back', () {
+    expect(
+      CaptionSettings().withAppLanguage(AppLanguage.en).appLanguage,
+      AppLanguage.en,
+    );
+    expect(appLanguageFromStorage('zh'), AppLanguage.zh);
+    expect(appLanguageFromStorage('nonsense'), AppLanguage.system);
   });
 
   test(

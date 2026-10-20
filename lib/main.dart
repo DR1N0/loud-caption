@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'captions/caption_controller.dart';
 import 'diagnostics/crash_log.dart';
 import 'downloads/download_preflight.dart';
+import 'l10n/generated/app_localizations.dart';
+import 'l10n/l10n.dart';
 import 'lifecycle/caption_lifecycle_coordinator.dart';
 import 'lifecycle/screen_awake.dart';
 import 'permissions/microphone_access.dart';
@@ -72,6 +74,7 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
   late final CaptionLifecycleCoordinator _coordinator;
   late final OrientationManager _orientationManager;
   late AppThemeMode _themeMode;
+  late AppLanguage _appLanguage;
 
   /// `null` while the initial (cheap, existence-only) check is in flight,
   /// `false` while `ModelDownloadScreen` is downloading, `true` once the
@@ -96,7 +99,8 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
       mayStartCapture: () => _coordinator.mayStartCapture,
     );
     _themeMode = _controller.settings.themeMode;
-    _controller.addListener(_onThemeMaybeChanged);
+    _appLanguage = _controller.settings.appLanguage;
+    _controller.addListener(_onSettingsMaybeChanged);
     _coordinator = CaptionLifecycleCoordinator(
       controller: _controller,
       engine: _engine,
@@ -109,11 +113,19 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
     unawaited(_checkModelReady());
   }
 
-  /// Only rebuilds `MaterialApp`'s theme on an actual day/night change, not
-  /// on every partial-caption notification `CaptionController` emits.
-  void _onThemeMaybeChanged() {
-    if (!mounted || _controller.settings.themeMode == _themeMode) return;
-    setState(() => _themeMode = _controller.settings.themeMode);
+  /// Only rebuilds `MaterialApp` when the theme or app language actually
+  /// changes, not on every partial-caption notification.
+  void _onSettingsMaybeChanged() {
+    if (!mounted) return;
+    final settings = _controller.settings;
+    if (settings.themeMode == _themeMode &&
+        settings.appLanguage == _appLanguage) {
+      return;
+    }
+    setState(() {
+      _themeMode = settings.themeMode;
+      _appLanguage = settings.appLanguage;
+    });
   }
 
   void _openSettings() {
@@ -146,7 +158,7 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
     try {
       await _coordinator.initialize();
     } catch (error) {
-      _initializationError = '无法初始化字幕: $error';
+      _initializationError = L10n.current.initializationFailed('$error');
     }
     if (mounted) setState(() => _ready = true);
   }
@@ -163,7 +175,7 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _controller.removeListener(_onThemeMaybeChanged);
+    _controller.removeListener(_onSettingsMaybeChanged);
     unawaited(
       _coordinator.shutdown().catchError((Object error) {
         debugPrint('Could not safely dispose caption recognition: $error');
@@ -197,7 +209,15 @@ class _CaptionAppState extends State<CaptionApp> with WidgetsBindingObserver {
     }
     return MaterialApp(
       navigatorKey: _navigatorKey,
-      title: 'Loud Caption',
+      onGenerateTitle: (context) => L10n.of(context).appTitle,
+      locale: _appLanguage.locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      builder: (context, child) {
+        // Keep controller/download error strings in the active UI language.
+        L10n.of(context);
+        return child ?? const SizedBox.shrink();
+      },
       theme: ThemeData.light(
         useMaterial3: true,
       ).copyWith(extensions: const [CaptionColors.light]),

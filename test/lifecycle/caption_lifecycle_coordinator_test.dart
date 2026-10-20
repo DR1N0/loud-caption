@@ -424,7 +424,7 @@ void main() {
 Future<void> _flush() => Future<void>.delayed(Duration.zero);
 
 class _MemorySettingsStore implements SettingsStore {
-  CaptionSettings value = CaptionSettings();
+  CaptionSettings value = CaptionSettings(appLanguage: AppLanguage.zh);
 
   @override
   Future<CaptionSettings> load() async => value;

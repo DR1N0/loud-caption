@@ -1,0 +1,177 @@
+{
+  "@@locale": "en",
+  "appTitle": "Loud Caption",
+  "languageSectionTitle": "App language",
+  "languageSystem": "Follow system",
+  "languageChinese": "中文",
+  "languageEnglish": "English",
+  "settingsTitle": "Settings",
+  "back": "Back",
+  "translationTargetSection": "Translation target",
+  "routingSection": "Two-way translation: target by source language",
+  "diagnosticsSection": "Diagnostics",
+  "viewCrashLog": "View crash log",
+  "crashLogSubtitle": "Stored only on this device; never uploaded",
+  "crashLogTitle": "Crash log",
+  "clear": "Clear",
+  "copy": "Copy",
+  "close": "Close",
+  "copiedToClipboard": "Copied to clipboard",
+  "settingsSaveFailed": "Could not save settings",
+  "routingTargetLabel": "{sourceName} translation target",
+  "@routingTargetLabel": {
+    "placeholders": {
+      "sourceName": {
+        "type": "String"
+      }
+    }
+  },
+  "noTranslationSuffix": " (no translation)",
+  "start": "Start",
+  "openSettingsForPermission": "Open settings",
+  "microphonePermissionPrompt": "Allow microphone access to show live captions",
+  "liveCaptionsLabel": "Live captions",
+  "statusListening": "Listening",
+  "statusSwitching": "Switching…",
+  "statusStarting": "Starting…",
+  "statusRetrying": "Retrying…",
+  "statusIdle": "Stopped",
+  "statusFailed": "Could not start recognition",
+  "retry": "Retry",
+  "modeCaptions": "Captions",
+  "modeTranslateAll": "Translate",
+  "modeTranslateCustom": "Two-way",
+  "increaseFontSize": "Increase caption font size",
+  "decreaseFontSize": "Decrease caption font size",
+  "toggleOrientation": "Toggle screen orientation",
+  "orientationLabel": "Layout",
+  "toggleMode": "Change mode",
+  "openSettings": "Open settings",
+  "themeLabel": "Theme",
+  "themeToggleLabel": "Toggle day/night mode",
+  "actionFailed": "Action failed: {error}",
+  "@actionFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "cancel": "Cancel",
+  "download": "Download",
+  "continueDownload": "Continue download",
+  "ok": "OK",
+  "cannotDownloadTranslationModel": "Could not download the translation model",
+  "translationDownloadTitle": "Download translation model",
+  "translationMobileTitle": "Download the translation model on mobile data?",
+  "translationMobileNotice": "You are not on Wi-Fi, so this download will use mobile data. Connect to Wi-Fi to avoid data charges.\n\n",
+  "translationDownloadBody": "Translation needs a one-time download of about 1.08 GB. Download it now?\n\nKeep this app in the foreground during the download; Android may restrict background networking and interrupt it. If interrupted, re-open the app and the download resumes from where it stopped.",
+  "loadingTranslationModel": "Loading the translation model…",
+  "downloadingTranslationModel": "Downloading the translation model…",
+  "sourceLabel": "Source: {source}",
+  "@sourceLabel": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "translationDownloadFailed": "Could not download the translation model: {error}",
+  "@translationDownloadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "mobileDownloadTitle": "Download the model on mobile data?",
+  "mobileDownloadNotice": "The first run needs about 240 MB of speech-recognition models.\n\nYou are not on Wi-Fi, so the download will use mobile data. Connect to Wi-Fi to avoid data charges.",
+  "modelDownloadFailed": "Download failed: {error}",
+  "@modelDownloadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "extractingDetail": "Extracting about 240 MB of model files. This usually takes a few seconds; keep the app in the foreground.",
+  "downloadCancelled": "Download cancelled",
+  "downloadCancelledBody": "The first run needs about 240 MB of speech-recognition models.\nConnect to Wi-Fi and try again to avoid mobile data charges.",
+  "downloadingAsr": "Downloading the speech-recognition model…",
+  "extractingModel": "Extracting the model…",
+  "downloadingVad": "Downloading the noise-reduction model…",
+  "settingsLoadFailed": "Could not load settings",
+  "stopFirst": "Stop recognition first",
+  "stopping": "Stopping recognition…",
+  "stopFailed": "Could not stop recognition",
+  "engineInitFailed": "Could not initialize the recognition engine",
+  "initializationFailed": "Could not initialize captions: {error}",
+  "@initializationFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "orientationSetFailed": "Could not set screen orientation: {error}",
+  "@orientationSetFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "orientationToggleFailed": "Could not change screen orientation: {error}",
+  "@orientationToggleFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recognitionLifecycleFailed": "Recognition lifecycle failed: {error}",
+  "@recognitionLifecycleFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotConfirmRecognitionState": "Could not confirm recognition state: {error}",
+  "@cannotConfirmRecognitionState": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotKeepScreenAwake": "Could not keep the screen awake: {error}",
+  "@cannotKeepScreenAwake": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotDisableScreenAwake": "Could not turn off keep-awake: {error}",
+  "@cannotDisableScreenAwake": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "insufficientSpace": "Not enough storage: about {required} is needed, but only {available} is available. Free up space and try again.",
+  "@insufficientSpace": {
+    "placeholders": {
+      "required": {
+        "type": "String"
+      },
+      "available": {
+        "type": "String"
+      }
+    }
+  },
+  "openSystemSettingsFailed": "Could not open system settings",
+  "translationDownloadCancelled": "Translation model download cancelled"
+}

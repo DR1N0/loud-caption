@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'device_status.dart' as device_status;
 
 /// The facts a model download needs before it starts: whether the current
@@ -39,9 +40,10 @@ Future<DownloadPreflight> checkDownloadPreflight({
   if (available < requiredBytes) {
     return DownloadPreflight(
       isWifi: false,
-      blockReason:
-          '存储空间不足：需要约 ${_formatBytes(requiredBytes)}，仅剩 '
-          '${_formatBytes(available)}。请清理空间后重试。',
+      blockReason: L10n.current.insufficientSpace(
+        _formatBytes(requiredBytes),
+        _formatBytes(available),
+      ),
     );
   }
 

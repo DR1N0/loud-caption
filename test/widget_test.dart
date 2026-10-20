@@ -18,6 +18,10 @@ void main() {
     'shows the model download screen first, then the live caption route '
     'once the download completes',
     (tester) async {
+      tester.binding.platformDispatcher.localeTestValue = const Locale('zh');
+      tester.binding.platformDispatcher.localesTestValue = const [Locale('zh')];
+      addTearDown(tester.binding.platformDispatcher.clearLocaleTestValue);
+      addTearDown(tester.binding.platformDispatcher.clearLocalesTestValue);
       final engine = _FakeSpeechEngine();
       final downloadController = StreamController<ModelDownloadEvent>();
 
@@ -179,7 +183,9 @@ class _NoopScreenAwake implements ScreenAwake {
 }
 
 class _MemorySettingsStore implements SettingsStore {
-  CaptionSettings settings = CaptionSettings();
+  CaptionSettings settings = CaptionSettings(
+    appLanguage: AppLanguage.zh,
+  );
 
   @override
   Future<CaptionSettings> load() async => settings;

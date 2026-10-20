@@ -1,4 +1,27 @@
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// The language used for the app's own interface (not recognition or
+/// translation). [system] follows the device locale, falling back to English
+/// when the device language is neither Chinese nor English.
+enum AppLanguage { system, zh, en }
+
+extension AppLanguageX on AppLanguage {
+  String get storageValue => name;
+
+  Locale? get locale => switch (this) {
+    AppLanguage.system => null,
+    AppLanguage.zh => const Locale('zh'),
+    AppLanguage.en => const Locale('en'),
+  };
+}
+
+AppLanguage appLanguageFromStorage(String? value) {
+  for (final language in AppLanguage.values) {
+    if (language.storageValue == value) return language;
+  }
+  return AppLanguage.system;
+}
 
 /// The four languages SenseVoice recognizes that translation can route from
 /// — used for 互译's routing-table rows and for validating a detected
@@ -102,6 +125,7 @@ class CaptionSettings {
     String translateAllTarget = 'en',
     Map<String, String> routing = const {},
     AppThemeMode themeMode = AppThemeMode.dark,
+    AppLanguage appLanguage = AppLanguage.system,
   }) => CaptionSettings._(
     _nearestFontSize(fontSize),
     landscape,
@@ -109,6 +133,7 @@ class CaptionSettings {
     _validatedFromList(translateAllTarget, translationTargetLanguages, fallback: 'en'),
     _validatedRouting(routing),
     themeMode,
+    appLanguage,
   );
 
   const CaptionSettings._(
@@ -118,6 +143,7 @@ class CaptionSettings {
     this._translateAllTarget,
     this._routing,
     this._themeMode,
+    this._appLanguage,
   );
 
   static const List<double> fontSizePresets = [16, 20, 24, 32, 48, 64, 80];
@@ -128,12 +154,14 @@ class CaptionSettings {
   final String _translateAllTarget;
   final Map<String, String> _routing;
   final AppThemeMode _themeMode;
+  final AppLanguage _appLanguage;
 
   double get fontSize => _fontSize;
   bool get landscape => _landscape;
   CaptionMode get captionMode => _captionMode;
   String get translateAllTarget => _translateAllTarget;
   AppThemeMode get themeMode => _themeMode;
+  AppLanguage get appLanguage => _appLanguage;
 
   /// The configured translation target for [sourceLanguage], or
   /// [sourceLanguage] itself (no translation) if it isn't one of
@@ -156,6 +184,9 @@ class CaptionSettings {
 
   CaptionSettings withThemeMode(AppThemeMode mode) => _copy(themeMode: mode);
 
+  CaptionSettings withAppLanguage(AppLanguage language) =>
+      _copy(appLanguage: language);
+
   CaptionSettings _copy({
     double? fontSize,
     bool? landscape,
@@ -163,6 +194,7 @@ class CaptionSettings {
     String? translateAllTarget,
     Map<String, String>? routing,
     AppThemeMode? themeMode,
+    AppLanguage? appLanguage,
   }) => CaptionSettings(
     fontSize: fontSize ?? this.fontSize,
     landscape: landscape ?? this.landscape,
@@ -170,6 +202,7 @@ class CaptionSettings {
     translateAllTarget: translateAllTarget ?? this.translateAllTarget,
     routing: routing ?? _routing,
     themeMode: themeMode ?? this.themeMode,
+    appLanguage: appLanguage ?? this.appLanguage,
   );
 
   @override
@@ -180,6 +213,7 @@ class CaptionSettings {
       other.captionMode == captionMode &&
       other.translateAllTarget == translateAllTarget &&
       other.themeMode == themeMode &&
+      other.appLanguage == appLanguage &&
       translationLanguages.every(
         (language) =>
             other.routingTargetFor(language) == routingTargetFor(language),
@@ -192,6 +226,7 @@ class CaptionSettings {
     captionMode,
     translateAllTarget,
     themeMode,
+    appLanguage,
     Object.hashAll([
       for (final language in translationLanguages) routingTargetFor(language),
     ]),
@@ -271,6 +306,7 @@ class SharedPreferencesSettingsStore implements SettingsStore {
   static const captionModeKey = 'caption.mode';
   static const translateAllTargetKey = 'caption.translateAllTarget';
   static const themeModeKey = 'caption.themeMode';
+  static const appLanguageKey = 'caption.appLanguage';
 
   static String routingKeyFor(String language) => 'caption.routing.$language';
 
@@ -289,6 +325,9 @@ class SharedPreferencesSettingsStore implements SettingsStore {
           language: preferences.getString(routingKeyFor(language)) ?? language,
       },
       themeMode: _readThemeMode(preferences),
+      appLanguage: appLanguageFromStorage(
+        preferences.getString(appLanguageKey),
+      ),
     );
   }
 
@@ -344,6 +383,13 @@ class SharedPreferencesSettingsStore implements SettingsStore {
       await _write(
         preferences.setString(themeModeKey, settings.themeMode.name),
         themeModeKey,
+      );
+      await _write(
+        preferences.setString(
+          appLanguageKey,
+          settings.appLanguage.storageValue,
+        ),
+        appLanguageKey,
       );
     } catch (error) {
       final rollbackError = await snapshot.restore(preferences);
@@ -402,6 +448,7 @@ class _SettingsSnapshot {
     required this.translateAllTarget,
     required this.routing,
     required this.themeMode,
+    required this.appLanguage,
   });
 
   factory _SettingsSnapshot.capture(SettingsPreferences preferences) =>
@@ -449,6 +496,13 @@ class _SettingsSnapshot {
             SharedPreferencesSettingsStore.themeModeKey,
           ),
         ),
+        appLanguage: _StoredValue.capture(
+          preferences,
+          SharedPreferencesSettingsStore.appLanguageKey,
+          () => preferences.getString(
+            SharedPreferencesSettingsStore.appLanguageKey,
+          ),
+        ),
       );
 
   final _StoredValue<double> fontSize;
@@ -457,6 +511,7 @@ class _SettingsSnapshot {
   final _StoredValue<String> translateAllTarget;
   final Map<String, _StoredValue<String>> routing;
   final _StoredValue<String> themeMode;
+  final _StoredValue<String> appLanguage;
 
   Future<Object?> restore(SettingsPreferences preferences) async {
     Object? firstFailure;
@@ -526,6 +581,16 @@ class _SettingsSnapshot {
         SharedPreferencesSettingsStore.themeModeKey,
         (value) => preferences.setString(
           SharedPreferencesSettingsStore.themeModeKey,
+          value,
+        ),
+      ),
+    );
+    await attempt(
+      () => appLanguage.restore(
+        preferences,
+        SharedPreferencesSettingsStore.appLanguageKey,
+        (value) => preferences.setString(
+          SharedPreferencesSettingsStore.appLanguageKey,
           value,
         ),
       ),

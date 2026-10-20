@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../downloads/download_preflight.dart';
+import '../l10n/l10n.dart';
 import '../speech/sense_voice_model_download.dart';
 import 'caption_theme.dart';
 import 'download_progress_bar.dart';
@@ -62,22 +63,20 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
     }
 
     if (!preflight.isWifi) {
+      final l10n = L10n.of(context);
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('使用移动数据下载模型？'),
-          content: const Text(
-            '首次使用需要下载约 240 MB 的语音识别模型。\n\n'
-            '当前未连接 Wi-Fi，将继续使用移动数据下载。连接 Wi-Fi 可避免消耗流量。',
-          ),
+          title: Text(l10n.mobileDownloadTitle),
+          content: Text(l10n.mobileDownloadNotice),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('取消'),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('继续下载'),
+              child: Text(l10n.continueDownload),
             ),
           ],
         ),
@@ -95,7 +94,11 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
         if (mounted) setState(() => _event = event);
       },
       onError: (Object error) {
-        if (mounted) setState(() => _error = '下载失败: $error');
+        if (mounted) {
+          setState(
+            () => _error = L10n.current.modelDownloadFailed('$error'),
+          );
+        }
       },
       onDone: () {
         if (mounted && _error == null) widget.onReady();
@@ -124,6 +127,7 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
   }
 
   Widget _progressView(CaptionColors colors) {
+    final l10n = L10n.of(context);
     final event = _event;
     final extracting = event?.phase == ModelDownloadPhase.extracting;
     final receivedBytes = event?.receivedBytes ?? 0;
@@ -141,40 +145,41 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
           receivedBytes: receivedBytes,
           totalBytes: showExtractionBytes ? event?.totalBytes : null,
           showByteCount: showExtractionBytes,
-          detail: extracting ? '正在解压约 240 MB 的模型文件，通常需要几十秒，请保持应用在前台。' : null,
+          detail: extracting ? l10n.extractingDetail : null,
         ),
       ],
     );
   }
 
   Widget _cancelledView(CaptionColors colors) {
+    final l10n = L10n.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(Icons.wifi_off, color: colors.dimText, size: 64),
         const SizedBox(height: 20),
         Text(
-          '已取消下载',
+          l10n.downloadCancelled,
           textAlign: TextAlign.center,
           style: TextStyle(color: colors.primaryText, fontSize: 20),
         ),
         const SizedBox(height: 12),
         Text(
-          '首次使用需要下载约 240 MB 的语音识别模型。\n'
-          '连接 Wi-Fi 后重试可避免消耗移动数据。',
+          l10n.downloadCancelledBody,
           textAlign: TextAlign.center,
           style: TextStyle(color: colors.dimText, fontSize: 15),
         ),
         const SizedBox(height: 24),
         FilledButton(
           onPressed: _start,
-          child: const Text('重试', style: TextStyle(fontSize: 18)),
+          child: Text(l10n.retry, style: const TextStyle(fontSize: 18)),
         ),
       ],
     );
   }
 
   Widget _errorView(CaptionColors colors) {
+    final l10n = L10n.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -188,7 +193,7 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
         const SizedBox(height: 24),
         FilledButton(
           onPressed: _start,
-          child: const Text('重试', style: TextStyle(fontSize: 18)),
+          child: Text(l10n.retry, style: const TextStyle(fontSize: 18)),
         ),
       ],
     );
@@ -199,12 +204,13 @@ class _ModelDownloadScreenState extends State<ModelDownloadScreen> {
   // through logs — real-device testing found the same download can succeed
   // via one mirror and hang on another depending on the network.
   String _phaseLabel(ModelDownloadEvent? event) {
+    final l10n = L10n.current;
     final base = switch (event?.phase) {
-      null || ModelDownloadPhase.downloadingAsr => '下载语音识别模型中…',
-      ModelDownloadPhase.extracting => '解压模型中…',
-      ModelDownloadPhase.downloadingVad => '下载降噪模型中…',
+      null || ModelDownloadPhase.downloadingAsr => l10n.downloadingAsr,
+      ModelDownloadPhase.extracting => l10n.extractingModel,
+      ModelDownloadPhase.downloadingVad => l10n.downloadingVad,
     };
     final source = event?.source;
-    return source == null ? base : '$base\n来源: $source';
+    return source == null ? base : '$base\n${l10n.sourceLabel(source)}';
   }
 }

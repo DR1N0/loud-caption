@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import '../captions/caption_controller.dart';
 import '../downloads/download_preflight.dart';
 import '../downloads/model_downloader.dart';
+import '../l10n/generated/app_localizations.dart';
+import '../l10n/l10n.dart';
 import '../lifecycle/caption_lifecycle_coordinator.dart';
 import '../permissions/microphone_access.dart';
 import '../settings/app_settings.dart';
@@ -96,7 +98,11 @@ class _CaptionScreenState extends State<CaptionScreen> {
             }
           })
           .catchError((Object error) {
-            if (mounted) setState(() => _actionError = '操作失败: $error');
+            if (mounted) {
+              setState(
+                () => _actionError = L10n.current.actionFailed('$error'),
+              );
+            }
           }),
     );
   }
@@ -105,7 +111,9 @@ class _CaptionScreenState extends State<CaptionScreen> {
     try {
       await widget.coordinator.cycleMode();
     } catch (error) {
-      if (mounted) setState(() => _actionError = '操作失败: $error');
+      if (mounted) {
+        setState(() => _actionError = L10n.current.actionFailed('$error'));
+      }
       return;
     }
     if (mounted && _actionError != null) setState(() => _actionError = null);
@@ -129,6 +137,7 @@ class _CaptionScreenState extends State<CaptionScreen> {
     // one would actually happen, not on every relaunch.
     final alreadyDownloaded = await engine.isModelDownloaded();
     if (!mounted) return;
+    final l10n = L10n.of(context);
 
     if (!alreadyDownloaded) {
       final preflight = await widget.preflightCheck(
@@ -140,12 +149,12 @@ class _CaptionScreenState extends State<CaptionScreen> {
         await showDialog<void>(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('无法下载翻译模型'),
+            title: Text(l10n.cannotDownloadTranslationModel),
             content: Text(blockReason),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('好'),
+                child: Text(l10n.ok),
               ),
             ],
           ),
@@ -157,27 +166,26 @@ class _CaptionScreenState extends State<CaptionScreen> {
 
       final networkNotice = preflight.isWifi
           ? ''
-          : '当前未连接 Wi-Fi，将使用移动数据下载。连接 Wi-Fi 可避免消耗流量。\n\n';
+          : l10n.translationMobileNotice;
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: Text(
-            preflight.isWifi ? '下载翻译模型' : '使用移动数据下载翻译模型？',
+            preflight.isWifi
+                ? l10n.translationDownloadTitle
+                : l10n.translationMobileTitle,
           ),
-          content: Text(
-            '首次使用翻译需要下载约 1.08 GB 的翻译模型，确定现在下载吗？\n\n'
-            '$networkNotice'
-            '下载过程中请保持本 App 在前台，切到后台可能被系统限制网络导致中断'
-            '（中断后重新进入会从断点继续，无需重新下载）。',
-          ),
+          content: Text('$networkNotice${l10n.translationDownloadBody}'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('取消'),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(preflight.isWifi ? '下载' : '继续下载'),
+              child: Text(
+                preflight.isWifi ? l10n.download : l10n.continueDownload,
+              ),
             ),
           ],
         ),
@@ -224,8 +232,11 @@ class _CaptionScreenState extends State<CaptionScreen> {
             // ModelDownloadScreen's matching label for the ASR download.
             builder: (context, value, _) => DownloadProgressBar(
               label: [
-                alreadyDownloaded ? '正在加载翻译模型…' : '正在下载翻译模型…',
-                if (value?.source != null) '来源: ${value!.source}',
+                alreadyDownloaded
+                    ? l10n.loadingTranslationModel
+                    : l10n.downloadingTranslationModel,
+                if (value?.source != null)
+                  l10n.sourceLabel(value!.source!),
               ].join('\n'),
               receivedBytes: value?.receivedBytes ?? 0,
               totalBytes: value?.totalBytes,
@@ -237,7 +248,9 @@ class _CaptionScreenState extends State<CaptionScreen> {
     progress.dispose();
     if (!mounted) return;
     if (loadError != null) {
-      setState(() => _actionError = '翻译模型下载失败: $loadError');
+      setState(
+        () => _actionError = L10n.current.translationDownloadFailed('$loadError'),
+      );
       await widget.coordinator.setCaptionMode(CaptionMode.captions);
     }
   }
@@ -265,6 +278,7 @@ class _CaptionScreenState extends State<CaptionScreen> {
 
   Widget _permissionView() {
     final colors = _colors(context);
+    final l10n = L10n.of(context);
     final permanentlyDenied =
         widget.coordinator.access == MicAccessState.permanentlyDenied;
     return Center(
@@ -276,7 +290,7 @@ class _CaptionScreenState extends State<CaptionScreen> {
             Icon(Icons.mic_none, color: colors.primaryText, size: 64),
             const SizedBox(height: 20),
             Text(
-              '开启麦克风权限后即可显示实时字幕',
+              l10n.microphonePermissionPrompt,
               textAlign: TextAlign.center,
               style: TextStyle(color: colors.primaryText, fontSize: 24),
             ),
@@ -292,13 +306,17 @@ class _CaptionScreenState extends State<CaptionScreen> {
                     ? () => _runAction(() async {
                         final opened = await widget.coordinator
                             .openPermissionSettings();
-                        if (!opened) throw StateError('无法打开系统设置');
+                        if (!opened) {
+                          throw StateError(l10n.openSystemSettingsFailed);
+                        }
                       })
                     : () => _runAction(
                         widget.coordinator.requestMicrophonePermission,
                       ),
                 child: Text(
-                  permanentlyDenied ? '去设置开启权限' : '开始',
+                  permanentlyDenied
+                      ? l10n.openSettingsForPermission
+                      : l10n.start,
                   style: const TextStyle(fontSize: 22),
                 ),
               ),
@@ -366,7 +384,7 @@ class _CaptionScreenState extends State<CaptionScreen> {
                   ),
                   child: Semantics(
                     liveRegion: true,
-                    label: '实时字幕',
+                    label: L10n.of(context).liveCaptionsLabel,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -416,13 +434,14 @@ class _CaptionScreenState extends State<CaptionScreen> {
 
   Widget _status(CaptionController controller) {
     final colors = _colors(context);
+    final l10n = L10n.of(context);
     final status = switch (controller.status) {
-      CaptionStatus.listening => '正在聆听',
-      CaptionStatus.switching => '切换中…',
-      CaptionStatus.starting => '正在启动…',
-      CaptionStatus.retrying => '正在重试…',
-      CaptionStatus.failed => controller.message ?? '识别引擎初始化失败',
-      CaptionStatus.idle => '已停止',
+      CaptionStatus.listening => l10n.statusListening,
+      CaptionStatus.switching => l10n.statusSwitching,
+      CaptionStatus.starting => l10n.statusStarting,
+      CaptionStatus.retrying => l10n.statusRetrying,
+      CaptionStatus.failed => controller.message ?? l10n.statusFailed,
+      CaptionStatus.idle => l10n.statusIdle,
     };
     final error = _actionError ?? widget.coordinator.lifecycleMessage;
     final message = error ?? status;
@@ -447,17 +466,17 @@ class _CaptionScreenState extends State<CaptionScreen> {
           if (error != null || controller.status == CaptionStatus.failed)
             TextButton(
               onPressed: () => _runAction(widget.coordinator.retryCapture),
-              child: const Text('重试'),
+              child: Text(l10n.retry),
             ),
         ],
       ),
     );
   }
 
-  String _modeLabel(CaptionMode mode) => switch (mode) {
-    CaptionMode.captions => '字幕',
-    CaptionMode.translateAll => '翻译',
-    CaptionMode.translateCustom => '互译',
+  String _modeLabel(CaptionMode mode, AppLocalizations l10n) => switch (mode) {
+    CaptionMode.captions => l10n.modeCaptions,
+    CaptionMode.translateAll => l10n.modeTranslateAll,
+    CaptionMode.translateCustom => l10n.modeTranslateCustom,
   };
 
   /// In the landscape side rail, the bar is rotated in place rather than
@@ -469,45 +488,46 @@ class _CaptionScreenState extends State<CaptionScreen> {
   /// large-touch-target bias, accepted for this control bar specifically.
   Widget _controls({required bool vertical}) {
     final settings = widget.controller.settings;
+    final l10n = L10n.of(context);
     final buttons = [
       _controlButton(
-        semanticLabel: '增大字幕字号',
+        semanticLabel: l10n.increaseFontSize,
         icon: Icons.text_increase,
         text: 'A+',
         onPressed: () => _runAction(widget.coordinator.increaseFont),
       ),
       _controlButton(
-        semanticLabel: '减小字幕字号',
+        semanticLabel: l10n.decreaseFontSize,
         icon: Icons.text_decrease,
         text: 'A-',
         onPressed: () => _runAction(widget.coordinator.decreaseFont),
       ),
       _controlButton(
-        semanticLabel: '切换屏幕方向',
+        semanticLabel: l10n.toggleOrientation,
         icon: Icons.screen_rotation,
-        text: '方向',
+        text: l10n.orientationLabel,
         onPressed: widget.coordinator.orientationChangeInFlight
             ? null
             : () => _runAction(widget.coordinator.toggleOrientation),
       ),
       _controlButton(
-        semanticLabel: '切换模式',
+        semanticLabel: l10n.toggleMode,
         icon: Icons.translate,
-        text: _modeLabel(settings.captionMode),
+        text: _modeLabel(settings.captionMode, l10n),
         onPressed: () => unawaited(_onCycleModePressed()),
       ),
       _controlButton(
-        semanticLabel: '打开设置',
+        semanticLabel: l10n.openSettings,
         icon: Icons.settings,
-        text: '设置',
+        text: l10n.settingsTitle,
         onPressed: widget.onOpenSettings,
       ),
       _controlButton(
-        semanticLabel: '切换昼夜模式',
+        semanticLabel: l10n.themeToggleLabel,
         icon: settings.themeMode == AppThemeMode.dark
             ? Icons.light_mode
             : Icons.dark_mode,
-        text: '昼夜',
+        text: l10n.themeLabel,
         onPressed: () => _runAction(widget.coordinator.toggleTheme),
       ),
     ];

@@ -124,7 +124,9 @@ class _FakeScreenAwake implements ScreenAwake {
 }
 
 class _MemorySettingsStore implements SettingsStore {
-  CaptionSettings settings = CaptionSettings();
+  CaptionSettings settings = CaptionSettings(
+    appLanguage: AppLanguage.zh,
+  );
 
   @override
   Future<CaptionSettings> load() async => settings;

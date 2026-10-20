@@ -118,5 +118,5 @@ events and remains responsive while models download or extract.
 - **Model files / mirrors / checksums** → `lib/downloads/`,
   `lib/speech/sense_voice_model_download.dart`, `docs/model-sources.md`.
 - **UI** → `lib/ui/`; keep accessibility semantics and large touch targets.
-- **New UI language** → ARB files and the i18n ADR; do not localize model
-  prompt names.
+- **UI language** → `lib/l10n/app_*.arb`; run `flutter gen-l10n` after edits.
+  Keep model prompt names Chinese as described in the i18n ADR.

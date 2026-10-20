@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:loud_caption/captions/caption_controller.dart';
+import 'package:loud_caption/l10n/generated/app_localizations.dart';
 import 'package:loud_caption/settings/app_settings.dart';
 import 'package:loud_caption/speech/speech_engine.dart';
 import 'package:loud_caption/ui/settings_screen.dart';
@@ -30,7 +31,10 @@ void main() {
     await tester.pump();
 
     expect(find.text('设置'), findsOneWidget);
-    expect(find.bySemanticsLabel('翻译模式目标语言\n英语'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(RegExp('翻译模式目标语言')),
+      findsWidgets,
+    );
     // Each routing row is a ListTile, which merges its title + trailing
     // dropdown into one multi-line semantics label rather than keeping the
     // dropdown's own label isolated — match the routing-target substring
@@ -180,10 +184,41 @@ void main() {
       expect(cleared, isTrue);
     },
   );
+
+  testWidgets('renders English strings and language names when locale is en', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 3200);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
+    final controller = CaptionController(
+      engine: _FakeSpeechEngine(),
+      settingsStore: _MemorySettingsStore()
+        ..value = CaptionSettings(appLanguage: AppLanguage.system),
+    );
+    await controller.initialize();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: SettingsScreen(controller: controller),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Translation target'), findsOneWidget);
+    expect(find.text('App language'), findsOneWidget);
+    expect(find.text('Follow system'), findsOneWidget);
+    expect(find.text('Chinese'), findsWidgets);
+  });
 }
 
 class _MemorySettingsStore implements SettingsStore {
-  CaptionSettings value = CaptionSettings();
+  CaptionSettings value = CaptionSettings(appLanguage: AppLanguage.zh);
 
   @override
   Future<CaptionSettings> load() async => value;

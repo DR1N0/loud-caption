@@ -42,6 +42,8 @@ operation, and as few taps as possible**. Everything else is secondary.
   (翻译), or a per-source-language routing table (互译).
 - **Landscape side rail**, day/night theme, and a settings screen that does not
   interrupt recognition.
+- **Chinese and English interface**, following the system language by default
+  or chosen in Settings; model prompts stay language-neutral.
 - **Download once, then work offline.** The app needs the network only to fetch
   its pinned, checksum-verified model files.
 

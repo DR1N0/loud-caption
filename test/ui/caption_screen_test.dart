@@ -540,7 +540,8 @@ class _FakeScreenAwake implements ScreenAwake {
 }
 
 class _MemorySettingsStore implements SettingsStore {
-  _MemorySettingsStore(this.value);
+  _MemorySettingsStore(CaptionSettings value)
+    : value = value.withAppLanguage(AppLanguage.zh);
 
   CaptionSettings value;
 

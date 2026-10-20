@@ -9,7 +9,7 @@ flutter test
 
 CI runs both on every push and pull request. The test suite covers download
 verification/fallback, settings persistence, caption lifecycle, translation
-download gates, and the download/extraction UI.
+download gates, the download/extraction UI, and Chinese/English rendering.
 
 ## Manual release smoke test
 
@@ -26,6 +26,9 @@ Run on a physical Android phone before attaching an APK to a release:
       can be reviewed by scrolling up.
 - [ ] Large font (80 px), landscape, theme toggle, and settings changes do not
       stop recognition.
+- [ ] Settings → App language: switching 中文/English updates the UI and
+      semantics immediately, survives a restart, and "Follow system" tracks the
+      device language.
 - [ ] Backgrounding, locking the screen, and returning behave as documented.
 - [ ] Translation produces readable output in both translation modes.
 - [ ] No crash, ANR, or silent capture stop during a 30-minute session.

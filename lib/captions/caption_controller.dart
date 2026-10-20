@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../l10n/l10n.dart';
 import '../settings/app_settings.dart';
 import '../speech/speech_engine.dart';
 import '../translation/translation_engine.dart';
@@ -85,7 +86,7 @@ class CaptionController extends ChangeNotifier {
     try {
       _settings = await _settingsStore.load();
     } catch (_) {
-      _message = '设置加载失败';
+      _message = L10n.current.settingsLoadFailed;
     }
     if (_disposed) return;
     _initialized = true;
@@ -98,7 +99,7 @@ class CaptionController extends ChangeNotifier {
     if (_disposed || _wantsListening) return;
     if (!_stopConfirmed) {
       _status = CaptionStatus.failed;
-      _message = '请先停止识别';
+      _message = L10n.current.stopFirst;
       _notify();
       return;
     }
@@ -140,14 +141,14 @@ class CaptionController extends ChangeNotifier {
 
     _stopConfirmed = false;
     _status = CaptionStatus.failed;
-    _message = '正在停止识别';
+    _message = L10n.current.stopping;
     _notify();
     try {
       await _stopEngine();
     } catch (_) {
       if (!_disposed) {
         _status = CaptionStatus.failed;
-        _message = '停止识别失败';
+        _message = L10n.current.stopFailed;
         _notify();
       }
       rethrow;
@@ -200,6 +201,12 @@ class CaptionController extends ChangeNotifier {
     await _saveAndApply(_settings.withThemeMode(_settings.themeMode.other));
   }
 
+  Future<void> setAppLanguage(AppLanguage language) async {
+    await initialize();
+    if (_disposed) return;
+    await _saveAndApply(_settings.withAppLanguage(language));
+  }
+
   Future<void> setTranslateAllTarget(String language) async {
     await initialize();
     if (_disposed) return;
@@ -217,7 +224,7 @@ class CaptionController extends ChangeNotifier {
       await _settingsStore.save(next);
     } catch (_) {
       if (_disposed) return;
-      _message = '设置保存失败';
+      _message = L10n.current.settingsSaveFailed;
       _notify();
       return;
     }
@@ -252,7 +259,7 @@ class CaptionController extends ChangeNotifier {
     if (!_isCurrentListeningGeneration(generation)) return;
     _wantsListening = false;
     _status = CaptionStatus.failed;
-    _message ??= '识别引擎初始化失败';
+    _message ??= L10n.current.engineInitFailed;
     _notify();
   }
 
@@ -272,7 +279,7 @@ class CaptionController extends ChangeNotifier {
             if (_isCurrentListeningGeneration(generation)) {
               _wantsListening = false;
               _status = CaptionStatus.failed;
-              _message = '停止识别失败';
+              _message = L10n.current.stopFailed;
               _notify();
             }
             return null;
@@ -423,7 +430,7 @@ class CaptionController extends ChangeNotifier {
         _wantsListening = false;
         _stopConfirmed = false;
         _status = CaptionStatus.failed;
-        _message = '停止识别失败';
+        _message = L10n.current.stopFailed;
         _notify();
       }
       return;

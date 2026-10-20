@@ -346,6 +346,15 @@ void main() {
       expect(store.value, captions.settings);
     });
 
+    test('setAppLanguage persists and defaults to system', () async {
+      await captions.initialize();
+      expect(captions.settings.appLanguage, AppLanguage.system);
+
+      await captions.setAppLanguage(AppLanguage.en);
+      expect(captions.settings.appLanguage, AppLanguage.en);
+      expect(store.value.appLanguage, AppLanguage.en);
+    });
+
     test('setTranslateAllTarget and setRoutingTarget persist', () async {
       await captions.initialize();
 

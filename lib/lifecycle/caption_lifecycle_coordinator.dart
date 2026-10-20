@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:synchronized/synchronized.dart';
 
 import '../captions/caption_controller.dart';
+import '../l10n/l10n.dart';
 import '../permissions/microphone_access.dart';
 import '../settings/app_settings.dart';
 import '../speech/speech_engine.dart';
@@ -71,7 +72,7 @@ class CaptionLifecycleCoordinator extends ChangeNotifier {
     try {
       await _orientationManager.apply(_controller.settings.landscape);
     } catch (error) {
-      _setLifecycleMessage('屏幕方向设置失败: $error');
+      _setLifecycleMessage(L10n.current.orientationSetFailed('$error'));
     }
     if (_disposed) return;
     final ticket = _revision;
@@ -188,7 +189,7 @@ class CaptionLifecycleCoordinator extends ChangeNotifier {
             await _controller.toggleOrientation();
           }
         });
-        _setLifecycleMessage('屏幕方向切换失败: $error');
+        _setLifecycleMessage(L10n.current.orientationToggleFailed('$error'));
       }
     } finally {
       if (!_disposed && ticket == _orientationTicket) {
@@ -231,7 +232,7 @@ class CaptionLifecycleCoordinator extends ChangeNotifier {
     unawaited(
       task.catchError((Object error, StackTrace stackTrace) {
         if (_lifecycleMessage == null) {
-          _setLifecycleMessage('识别生命周期失败: $error');
+          _setLifecycleMessage(L10n.current.recognitionLifecycleFailed('$error'));
         }
       }),
     );
@@ -270,7 +271,7 @@ class CaptionLifecycleCoordinator extends ChangeNotifier {
       try {
         active = await _engine.isSessionActive(sessionId);
       } catch (error) {
-        _setLifecycleMessage('无法确认识别状态: $error');
+        _setLifecycleMessage(L10n.current.cannotConfirmRecognitionState('$error'));
         return;
       }
       if (!captureDesired) {
@@ -319,7 +320,7 @@ class CaptionLifecycleCoordinator extends ChangeNotifier {
       return true;
     } catch (error) {
       _replaceIntent(_intent.copyWith(stopFailed: true));
-      _setLifecycleMessage('停止识别失败: $error');
+      _setLifecycleMessage(L10n.current.stopFailed);
       rethrow;
     }
   }
@@ -343,7 +344,7 @@ class CaptionLifecycleCoordinator extends ChangeNotifier {
       await _screenAwake.enable();
       _awake = true;
     } catch (error) {
-      _setLifecycleMessage('无法保持屏幕常亮: $error');
+      _setLifecycleMessage(L10n.current.cannotKeepScreenAwake('$error'));
     }
   }
 
@@ -353,7 +354,7 @@ class CaptionLifecycleCoordinator extends ChangeNotifier {
     try {
       await _screenAwake.disable();
     } catch (error) {
-      _setLifecycleMessage('无法关闭屏幕常亮: $error');
+      _setLifecycleMessage(L10n.current.cannotDisableScreenAwake('$error'));
     }
   }
 
@@ -371,7 +372,7 @@ class CaptionLifecycleCoordinator extends ChangeNotifier {
                 }
               })
               .catchError((Object error) {
-                _setLifecycleMessage('无法关闭屏幕常亮: $error');
+                _setLifecycleMessage(L10n.current.cannotDisableScreenAwake('$error'));
               }),
         );
       }
