@@ -76,6 +76,7 @@ jobs:
           fi
           mkdir -p dist
           cp "${apk}" dist/app-release.apk
+          cp LICENSE THIRD_PARTY_NOTICES.md dist/
           (cd dist && sha256sum app-release.apk > app-release.apk.sha256)
           ls -lh dist
 
@@ -85,4 +86,6 @@ jobs:
           files: |
             dist/app-release.apk
             dist/app-release.apk.sha256
+            dist/LICENSE
+            dist/THIRD_PARTY_NOTICES.md
           generate_release_notes: true
