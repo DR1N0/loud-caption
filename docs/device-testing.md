@@ -43,8 +43,10 @@ adb -s <serial> install -r \
 - Do **not** use `flutter install`: it can reuse an existing APK without
   rebuilding, which has caused stale-build test cycles.
 - Use `adb install -r`, not an uninstall/reinstall, to preserve app data.
-- Debug and release builds share the committed signing key, so they can
-  replace each other without an uninstall.
+- Debug and release builds share the local upload key when
+  `android/key.properties` is present, so they can replace each other without
+  an uninstall. Without a local key, debug uses the standard debug key and
+  cannot replace a release install.
 - MIUI may require an on-screen confirmation for ADB installs. If the install
   reports "Install canceled by user", check the phone screen and retry.
 - Install the **release** APK when capturing README screenshots, so the debug

@@ -33,7 +33,7 @@ The SenseVoice ONNX export (`model.int8.onnx` + `tokens.txt`) is a converted/qua
 
 The Silero VAD model (`silero_vad.onnx`) is MIT-licensed by the Silero Team (<https://github.com/snakers4/silero-vad/blob/master/LICENSE>); the full text is also reproduced in [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md).
 
-This project is distributed as a public GitHub Release. [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md) packages the applicable license texts and attribution for sherpa-onnx, the `record` package, the FunASR/SenseVoice model, and the Silero VAD model alongside the APK. Check whether upstream provides any further notices or terms for these exact file versions before a future model-version bump; the license labels above do not establish training-data provenance. Do not infer model-data rights solely from sherpa-onnx's own code license.
+This project is distributed as a public GitHub Release. [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md) packages the applicable license texts and attribution for sherpa-onnx, the `record` package, the FunASR/SenseVoice model, and the Silero VAD model alongside the APK and AAB. Check whether upstream provides any further notices or terms for these exact file versions before a future model-version bump; the license labels above do not establish training-data provenance. Do not infer model-data rights solely from sherpa-onnx's own code license.
 
 ## Hy-MT2 translation model
 

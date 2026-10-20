@@ -13,8 +13,8 @@ body:
     id: version
     attributes:
       label: App version and install source
-      description: Release tag (for example v0.0.3) and whether it came from GitHub Releases or Obtainium.
-      placeholder: v0.0.3, GitHub Releases
+      description: Release tag (for example v0.0.4) and whether it came from GitHub Releases or Obtainium.
+      placeholder: v0.0.4, GitHub Releases
     validations:
       required: true
 

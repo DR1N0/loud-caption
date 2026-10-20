@@ -1,6 +1,6 @@
 # ADR 0003 — Sign sideload builds with a public, committed key
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0006](0006-private-signing.md) (2026-10-20)
 - **Date:** 2026-10-20
 
 ## Context

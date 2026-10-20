@@ -13,7 +13,7 @@ download gates, the download/extraction UI, and Chinese/English rendering.
 
 ## Manual release smoke test
 
-Run on a physical Android phone before attaching an APK to a release:
+Run on a physical Android phone before attaching release artifacts:
 
 - [ ] Install over the previous release without uninstalling; app data survives.
 - [ ] First launch with Wi-Fi: model download starts, shows progress, extracts,

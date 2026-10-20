@@ -38,12 +38,16 @@ Do **not** attach private conversations. A staged reproduction is enough.
 
 ## Localization
 
-The UI is being prepared for Chinese and English first. Add new strings to both
-ARB files, and keep model prompt names separate from localized display names
-(see ADR 0004).
+Chinese and English are supported. Add new strings to both ARB files, run
+`flutter gen-l10n`, and keep model prompt names separate from localized
+display names (see ADR 0004).
 
 ## Signing
 
-The committed keystore is intentionally public and only suitable for this
-sideload-only project. Do not reuse it for another app, and do not move this
-app to Google Play without a separate private upload key and Play App Signing.
+Release builds use a **private upload keystore**, never a committed key. Put
+the keystore and `android/key.properties` outside version control; CI receives
+the same material through the `ANDROID_KEYSTORE_*` repository secrets. See
+[docs/release.md](docs/release.md).
+
+Do not reuse the old public key from ADR 0003. Forks should generate their own
+key (and will therefore produce builds that cannot update the official app).
