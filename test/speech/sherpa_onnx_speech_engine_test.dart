@@ -65,7 +65,6 @@ class _FakeMicCapture implements MicCapture {
 class _FakeRecognitionStrategy implements RecognitionStrategy {
   final List<String> calls = [];
   final _controller = StreamController<RecognitionOutput>.broadcast();
-  var _config = {'language': 'auto'};
   Object? stopError;
   Object? disposeError;
   Completer<void>? _gate;
@@ -80,26 +79,8 @@ class _FakeRecognitionStrategy implements RecognitionStrategy {
   Stream<RecognitionOutput> get output => _controller.stream;
 
   @override
-  List<SpeechEngineConfigOption> get configOptions => const [
-    SpeechEngineConfigOption(
-      key: 'language',
-      allowedValues: ['auto', 'zh', 'en'],
-      defaultValue: 'auto',
-    ),
-  ];
-
-  @override
-  Map<String, String> get currentConfig => _config;
-
-  @override
-  void applyConfig(Map<String, String> values) {
-    calls.add('applyConfig:$values');
-    _config = {..._config, ...values};
-  }
-
-  @override
-  Future<void> start(String languageCode) async {
-    calls.add('start:$languageCode');
+  Future<void> start() async {
+    calls.add('start');
     final gate = _gate;
     if (gate != null) await gate.future;
   }
@@ -138,13 +119,13 @@ void main() {
   });
 
   test('start() throws StateError if already active or pending', () async {
-    await engine.start('en');
-    await expectLater(engine.start('en'), throwsA(isA<StateError>()));
+    await engine.start();
+    await expectLater(engine.start(), throwsA(isA<StateError>()));
 
     await engine.stop();
     final gate = mic.gateStart();
-    final pendingStart = engine.start('en');
-    await expectLater(engine.start('en'), throwsA(isA<StateError>()));
+    final pendingStart = engine.start();
+    await expectLater(engine.start(), throwsA(isA<StateError>()));
 
     gate.complete(const Stream.empty());
     await expectLater(pendingStart, completes);
@@ -152,11 +133,11 @@ void main() {
   });
 
   test('session IDs increase monotonically and are returned from start()', () async {
-    final first = await engine.start('en');
+    final first = await engine.start();
     await engine.stop();
-    final second = await engine.start('en');
+    final second = await engine.start();
     await engine.stop();
-    final third = await engine.start('en');
+    final third = await engine.start();
 
     expect(second, greaterThan(first));
     expect(third, greaterThan(second));
@@ -165,7 +146,7 @@ void main() {
 
   group('isSessionActive', () {
     test('false immediately for a non-current id without touching mic/strategy', () async {
-      final active = await engine.start('en');
+      final active = await engine.start();
       mic.calls.clear();
       strategy.calls.clear();
 
@@ -177,13 +158,13 @@ void main() {
     });
 
     test('true for the current id', () async {
-      final active = await engine.start('en');
+      final active = await engine.start();
       expect(await engine.isSessionActive(active), isTrue);
       await engine.dispose();
     });
 
     test('flips to false after an error event for that session', () async {
-      final active = await engine.start('en');
+      final active = await engine.start();
       expect(await engine.isSessionActive(active), isTrue);
 
       strategy.emitError('boom');
@@ -202,7 +183,7 @@ void main() {
       final received = <SpeechEvent>[];
       final subscription = engine.events.listen(received.add);
 
-      final start = engine.start('en');
+      final start = engine.start();
       await Future<void>.delayed(Duration.zero);
       await engine.stop();
       gate.complete(mic._controller.stream);
@@ -211,7 +192,7 @@ void main() {
       // The strategy's expensive isolate/model spawn is never touched; its
       // `stop` may still fire as part of `stop()`'s unconditional best-effort
       // cleanup of both collaborators.
-      expect(strategy.calls, isNot(contains('start:en')));
+      expect(strategy.calls, isNot(contains('start')));
       expect(mic.calls, containsAllInOrder(['hasPermission', 'start', 'stop']));
 
       mic.emit(Uint8List.fromList([1, 2]));
@@ -231,7 +212,7 @@ void main() {
       final received = <SpeechEvent>[];
       final subscription = engine.events.listen(received.add);
 
-      final start = engine.start('en');
+      final start = engine.start();
       await Future<void>.delayed(Duration.zero);
       await engine.stop();
       gate.complete();
@@ -251,7 +232,7 @@ void main() {
 
   group('dispose', () {
     test('is idempotent, stops any active session, and cleans up exactly once', () async {
-      await engine.start('en');
+      await engine.start();
       await engine.dispose();
       await engine.dispose();
 
@@ -266,13 +247,13 @@ void main() {
       await engine.dispose();
       await done.future;
 
-      await expectLater(engine.start('en'), throwsA(isA<StateError>()));
+      await expectLater(engine.start(), throwsA(isA<StateError>()));
     });
 
     test(
       'surfaces a failed stop but still finishes closing events',
       () async {
-        await engine.start('en');
+        await engine.start();
         mic.stopError = StateError('stop failed');
         final done = Completer<void>();
         engine.events.listen(null, onDone: done.complete);
@@ -287,7 +268,7 @@ void main() {
 
     test('stops a pending start and compensates the eventual mic readiness', () async {
       final gate = mic.gateStart();
-      final start = engine.start('en');
+      final start = engine.start();
       await Future<void>.delayed(Duration.zero);
 
       await engine.dispose();
@@ -305,7 +286,7 @@ void main() {
       final received = <SpeechEvent>[];
       final subscription = engine.events.listen(received.add);
 
-      final sessionId = await engine.start('en');
+      final sessionId = await engine.start();
       strategy.emit(
         const RecognitionOutput(
           text: '你好',
@@ -340,7 +321,7 @@ void main() {
       final received = <SpeechEvent>[];
       final subscription = engine.events.listen(received.add);
 
-      final sessionId = await engine.start('en');
+      final sessionId = await engine.start();
       mic.emitError('mic broke');
       await Future<void>.delayed(Duration.zero);
 
@@ -349,7 +330,7 @@ void main() {
       expect(received.single.sessionId, sessionId);
 
       await engine.stop();
-      final secondSessionId = await engine.start('en');
+      final secondSessionId = await engine.start();
       strategy.emitError('strategy broke');
       await Future<void>.delayed(Duration.zero);
 
@@ -361,16 +342,4 @@ void main() {
       await engine.dispose();
     },
   );
-
-  test('applyConfig/configOptions/currentConfig pass through to the strategy', () async {
-    expect(engine.configOptions, strategy.configOptions);
-    expect(engine.currentConfig, strategy.currentConfig);
-
-    await engine.applyConfig({'language': 'zh'});
-
-    expect(strategy.calls, contains('applyConfig:{language: zh}'));
-    expect(engine.currentConfig['language'], 'zh');
-
-    await engine.dispose();
-  });
 }

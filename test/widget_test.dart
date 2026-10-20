@@ -59,9 +59,9 @@ void main() {
     final engine = _FakeSpeechEngine();
     addTearDown(engine.dispose);
 
-    final first = await engine.start('zh');
+    final first = await engine.start();
     await engine.stop();
-    final second = await engine.start('en');
+    final second = await engine.start();
 
     expect(second, isNot(first));
     expect(await engine.isSessionActive(first), isFalse);
@@ -201,8 +201,7 @@ class _FakeSpeechEngine implements SpeechEngine {
   Future<void> dispose() async => disposed = true;
 
   @override
-  Future<int> start(String languageCode) async =>
-      _activeSessionId = ++_nextSessionId;
+  Future<int> start() async => _activeSessionId = ++_nextSessionId;
 
   @override
   Future<bool> isSessionActive(int sessionId) async =>
@@ -213,11 +212,4 @@ class _FakeSpeechEngine implements SpeechEngine {
     stopCalls++;
     _activeSessionId = null;
   }
-
-  @override
-  List<SpeechEngineConfigOption> get configOptions => const [];
-  @override
-  Map<String, String> get currentConfig => const {};
-  @override
-  Future<void> applyConfig(Map<String, String> values) async {}
 }

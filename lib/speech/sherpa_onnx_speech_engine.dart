@@ -55,7 +55,7 @@ class SherpaOnnxSpeechEngine implements SpeechEngine {
   Stream<SpeechEvent> get events => _events.stream;
 
   @override
-  Future<int> start(String languageCode) async {
+  Future<int> start() async {
     _ensureNotDisposed();
     if (_pendingStartGeneration != null || _activeSessionId != null) {
       throw StateError('Speech recognition is already active');
@@ -74,7 +74,7 @@ class SherpaOnnxSpeechEngine implements SpeechEngine {
         throw StateError('Speech start was cancelled');
       }
 
-      await _strategy.start(languageCode);
+      await _strategy.start();
       if (_disposed || _generation != generation) {
         await _bestEffort(_mic.stop);
         await _bestEffort(_strategy.stop);
@@ -183,17 +183,6 @@ class SherpaOnnxSpeechEngine implements SpeechEngine {
     if (firstError != null) {
       Error.throwWithStackTrace(firstError!, firstStackTrace!);
     }
-  }
-
-  @override
-  List<SpeechEngineConfigOption> get configOptions => _strategy.configOptions;
-
-  @override
-  Map<String, String> get currentConfig => _strategy.currentConfig;
-
-  @override
-  Future<void> applyConfig(Map<String, String> values) async {
-    _strategy.applyConfig(values);
   }
 
   void _onPcmBytes(int sessionId, Uint8List bytes) {

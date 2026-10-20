@@ -115,9 +115,12 @@ it. You will need to allow installs from your browser or file manager.
 Tested in normal conversation on two Android phones, including my
 grandfather's. No thermal or battery problems were observed in that use, and
 the app behaves like other continuously-running apps on those devices; this is
-not a formal benchmark. Accuracy across accents, devices, and long sessions
-will improve with more reports. Translation is optional and currently Android
-only; iOS, cloud sync, caption history, and accounts are out of scope.
+not a formal benchmark. Recognition language is detected automatically by
+SenseVoice and cannot be forced, so strongly accented or slurred speech may
+occasionally be labelled as another language. Accuracy across accents,
+devices, and long sessions will improve with more reports. Translation is
+optional and currently Android only; iOS, cloud sync, caption history, and
+accounts are out of scope.
 
 ## Build and test
 

@@ -200,18 +200,6 @@ class CaptionController extends ChangeNotifier {
     await _saveAndApply(_settings.withThemeMode(_settings.themeMode.other));
   }
 
-  /// Persists the recognition-language override and applies it to a running
-  /// recognizer in place. The ASR isolate receives an `_AsrSetLanguage`
-  /// message, so the already-loaded model is kept and no capture restart is
-  /// needed.
-  Future<void> setRecognitionLanguage(String language) async {
-    await initialize();
-    if (_disposed) return;
-    await _saveAndApply(_settings.withRecognitionLanguage(language));
-    if (_disposed || _settings.recognitionLanguage != language) return;
-    await _engine.applyConfig({'language': language});
-  }
-
   Future<void> setTranslateAllTarget(String language) async {
     await initialize();
     if (_disposed) return;
@@ -276,7 +264,7 @@ class CaptionController extends ChangeNotifier {
           return null;
         }
 
-        final startedSession = await _engine.start(_settings.recognitionLanguage);
+        final startedSession = await _engine.start();
         if (!_isCurrentListeningGeneration(generation) || !_mayStartCapture()) {
           try {
             await _engine.stop();

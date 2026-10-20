@@ -306,26 +306,6 @@ void main() {
       },
     );
 
-    test(
-      'setRecognitionLanguage persists, applies to the running engine, and is '
-      'used by the next start',
-      () async {
-        await captions.initialize();
-        await captions.start();
-        expect(engine.started, ['auto']);
-
-        await captions.setRecognitionLanguage('zh');
-        expect(store.value.recognitionLanguage, 'zh');
-        expect(engine.appliedConfigs, [
-          {'language': 'zh'},
-        ]);
-
-        await captions.stop();
-        await captions.start();
-        expect(engine.started, ['auto', 'zh']);
-      },
-    );
-
     test('font size steps at the presets and orientation persists', () async {
       await captions.initialize();
 
@@ -428,8 +408,8 @@ class FakeSpeechEngine implements SpeechEngine {
   Stream<SpeechEvent> get events => controller.stream;
 
   @override
-  Future<int> start(String languageCode) async {
-    started.add(languageCode);
+  Future<int> start() async {
+    started.add('auto');
     onStart?.call();
     await holdStart;
     if (failuresRemaining > 0) {
@@ -457,15 +437,4 @@ class FakeSpeechEngine implements SpeechEngine {
   Future<void> dispose() => controller.close();
 
   void emit(SpeechEvent event) => controller.add(event);
-
-  @override
-  List<SpeechEngineConfigOption> get configOptions => const [];
-  @override
-  Map<String, String> get currentConfig => const {};
-  @override
-  Future<void> applyConfig(Map<String, String> values) async {
-    appliedConfigs.add(Map<String, String>.of(values));
-  }
-
-  final List<Map<String, String>> appliedConfigs = [];
 }

@@ -9,6 +9,7 @@ ADRs record decisions that are expensive to reverse. They describe **why**;
 | [0002](0002-model-downloads.md) | Pin model files, verify checksums, resume downloads |
 | [0003](0003-signing-and-distribution.md) | Use a public committed key for sideload builds |
 | [0004](0004-internationalization.md) | Ship Chinese/English first; keep model prompt names stable |
+| [0005](0005-auto-only-recognition.md) | Use SenseVoice auto language detection; no unreliable override |
 
 To change a decision, add a new ADR that supersedes the old one; do not rewrite
 history.

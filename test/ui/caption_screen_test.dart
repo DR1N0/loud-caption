@@ -567,8 +567,8 @@ class _FakeSpeechEngine implements SpeechEngine {
   Stream<SpeechEvent> get events => _events.stream;
 
   @override
-  Future<int> start(String languageCode) async {
-    startedLanguages.add(languageCode);
+  Future<int> start() async {
+    startedLanguages.add('auto');
     return activeSessionId = ++nextSessionId;
   }
 
@@ -586,11 +586,4 @@ class _FakeSpeechEngine implements SpeechEngine {
     disposed = true;
     await _events.close();
   }
-
-  @override
-  List<SpeechEngineConfigOption> get configOptions => const [];
-  @override
-  Map<String, String> get currentConfig => const {};
-  @override
-  Future<void> applyConfig(Map<String, String> values) async {}
 }

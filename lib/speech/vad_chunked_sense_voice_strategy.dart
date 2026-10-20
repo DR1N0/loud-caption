@@ -5,10 +5,8 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa_onnx;
 
-import '../settings/app_settings.dart' show recognitionLanguages;
 import 'recognition_strategy.dart';
 import 'sense_voice_model_assets.dart';
-import 'speech_engine.dart';
 
 /// Pre-roll back-dating applied to the speech-start offset the moment
 /// [sherpa_onnx.VoiceActivityDetector.isDetected] transitions from
@@ -96,46 +94,14 @@ class GrowingSampleBuffer {
   }
 }
 
-/// Validates [values] against [options], throwing [ArgumentError] for an
-/// unknown key or a value outside that key's allowed values.
-///
-/// Pure and synchronous so it can run (and be unit-tested) before any
-/// isolate is touched. Shared by [VadChunkedSenseVoiceStrategy.applyConfig]
-/// (arbitrary caller-supplied keys) and [VadChunkedSenseVoiceStrategy.start]
-/// (validating the single `language` key derived from its parameter).
-void _validateLanguageConfig(
-  Map<String, String> values,
-  List<SpeechEngineConfigOption> options,
-) {
-  for (final entry in values.entries) {
-    SpeechEngineConfigOption? option;
-    for (final candidate in options) {
-      if (candidate.key == entry.key) {
-        option = candidate;
-        break;
-      }
-    }
-    if (option == null) {
-      throw ArgumentError('Unknown config key: "${entry.key}"');
-    }
-    if (!option.allowedValues.contains(entry.value)) {
-      throw ArgumentError(
-        'Invalid value "${entry.value}" for config key "${entry.key}"; '
-        'allowed values: ${option.allowedValues}',
-      );
-    }
-  }
-}
-
 /// A [RecognitionStrategy] that runs Silero VAD + SenseVoice's offline
 /// `OfflineRecognizer` across two background isolates (VAD, ASR), modeled on
 /// sherpa-onnx's own `vad-non-streaming-asr-from-microphone` Flutter example.
 ///
 /// Both isolates are spawned once (on the first [start]) and stay warm across
-/// [stop]/[start] cycles — e.g. `CaptionController.switchLanguage`'s
-/// stop-then-start pattern — because reloading SenseVoice's ~163 MB ONNX
-/// model on every language toggle would make that toggle feel broken.
-/// Only [dispose] tears the isolates down permanently.
+/// [stop]/[start] cycles, because reloading SenseVoice's ~163 MB ONNX model on
+/// every capture restart would be expensive. Only [dispose] tears the isolates
+/// down permanently.
 ///
 /// While speech is ongoing, the VAD isolate also re-decodes the
 /// in-progress segment every [simulatedStreamingPartialInterval] and emits
@@ -166,61 +132,19 @@ class VadChunkedSenseVoiceStrategy implements RecognitionStrategy {
   SendPort? _vadSendPort;
   SendPort? _asrSendPort;
 
-  String? _languageOverride;
   bool _forwardingAudio = false;
   bool _disposed = false;
-
-  /// Incremented each time isolate spawning is actually attempted. Exposed
-  /// only so tests can assert that an invalid [start] language never reaches
-  /// isolate spawning, without needing a real isolate or a fake for one.
-  @visibleForTesting
-  int debugSpawnAttempts = 0;
 
   @override
   Stream<RecognitionOutput> get output => _output.stream;
 
   @override
-  List<SpeechEngineConfigOption> get configOptions => const [
-    // recognitionLanguages is also sherpa-onnx's SenseVoice model's exact
-    // accepted set — validated natively in
-    // `offline-sense-voice-model-config.cc`; anything outside it is
-    // rejected by the native layer, so we reject it synchronously in Dart
-    // first for a clearer error.
-    SpeechEngineConfigOption(
-      key: 'language',
-      allowedValues: recognitionLanguages,
-      defaultValue: 'auto',
-    ),
-  ];
-
-  @override
-  Map<String, String> get currentConfig => {
-    'language': _languageOverride ?? configOptions.first.defaultValue,
-  };
-
-  @override
-  void applyConfig(Map<String, String> values) {
-    _validateLanguageConfig(values, configOptions);
-    final language = values['language'];
-    if (language == null) return;
-    _languageOverride = language;
-    // If recognition is already running, update the loaded recognizer in
-    // place. The message queues behind any in-flight decode and applies to
-    // the next segment; no model reload or capture restart is needed.
-    _asrSendPort?.send(_AsrSetLanguage(language));
-  }
-
-  @override
-  Future<void> start(String languageCode) async {
+  Future<void> start() async {
     _ensureNotDisposed();
-    final effectiveLanguage = _languageOverride ?? languageCode;
-    _validateLanguageConfig({'language': effectiveLanguage}, configOptions);
-
     if (_vadIsolate == null) {
-      await _spawnIsolates(effectiveLanguage);
+      await _spawnIsolates();
     } else {
       _vadSendPort!.send(const _VadReset());
-      _asrSendPort!.send(_AsrSetLanguage(effectiveLanguage));
     }
     _forwardingAudio = true;
   }
@@ -254,8 +178,7 @@ class VadChunkedSenseVoiceStrategy implements RecognitionStrategy {
     await _output.close();
   }
 
-  Future<void> _spawnIsolates(String languageCode) async {
-    debugSpawnAttempts++;
+  Future<void> _spawnIsolates() async {
     final paths = await _prepareModelAssets();
 
     final mainReceivePort = ReceivePort();
@@ -296,7 +219,6 @@ class VadChunkedSenseVoiceStrategy implements RecognitionStrategy {
         mainSendPort: mainReceivePort.sendPort,
         senseVoiceModelPath: paths.senseVoiceModel,
         senseVoiceTokensPath: paths.senseVoiceTokens,
-        languageCode: languageCode,
       ),
     );
     _asrSendPort = await asrReady.future;
@@ -394,11 +316,6 @@ TransferableTypedData _transferableSamples(Float32List samples) {
   return TransferableTypedData.fromList([
     Uint8List.view(samples.buffer, samples.offsetInBytes, samples.lengthInBytes),
   ]);
-}
-
-class _AsrSetLanguage {
-  const _AsrSetLanguage(this.languageCode);
-  final String languageCode;
 }
 
 class _AsrResult {
@@ -597,25 +514,25 @@ class _AsrIsolateInit {
     required this.mainSendPort,
     required this.senseVoiceModelPath,
     required this.senseVoiceTokensPath,
-    required this.languageCode,
   });
 
   final SendPort mainSendPort;
   final String senseVoiceModelPath;
   final String senseVoiceTokensPath;
-  final String languageCode;
 }
 
 sherpa_onnx.OfflineRecognizerConfig _buildOfflineRecognizerConfig({
   required String senseVoiceModelPath,
   required String senseVoiceTokensPath,
-  required String languageCode,
 }) {
   return sherpa_onnx.OfflineRecognizerConfig(
     model: sherpa_onnx.OfflineModelConfig(
       senseVoice: sherpa_onnx.OfflineSenseVoiceModelConfig(
         model: senseVoiceModelPath,
-        language: languageCode,
+        // SenseVoiceSmall's language field is only a weak hint; experiments
+        // and upstream guidance show it does not force the output language.
+        // Keep auto detection and let the model report the detected language.
+        language: 'auto',
         useInverseTextNormalization: false,
       ),
       tokens: senseVoiceTokensPath,
@@ -631,7 +548,6 @@ Future<void> _asrIsolateEntry(_AsrIsolateInit init) async {
     _buildOfflineRecognizerConfig(
       senseVoiceModelPath: init.senseVoiceModelPath,
       senseVoiceTokensPath: init.senseVoiceTokensPath,
-      languageCode: init.languageCode,
     ),
   );
 
@@ -653,16 +569,6 @@ Future<void> _asrIsolateEntry(_AsrIsolateInit init) async {
           result.text,
           isFinal: message.isFinal,
           lang: _normalizeDetectedLanguage(result.lang),
-        ),
-      );
-    } else if (message is _AsrSetLanguage) {
-      // A language toggle updates the recognizer's runtime config in place
-      // rather than recreating it, so the ~163 MB ONNX model stays loaded.
-      recognizer.setConfig(
-        _buildOfflineRecognizerConfig(
-          senseVoiceModelPath: init.senseVoiceModelPath,
-          senseVoiceTokensPath: init.senseVoiceTokensPath,
-          languageCode: message.languageCode,
         ),
       );
     }

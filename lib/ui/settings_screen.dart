@@ -5,10 +5,8 @@ import '../captions/caption_controller.dart';
 import '../diagnostics/crash_log.dart' as crash_log;
 import '../settings/app_settings.dart';
 
-/// Lets the user force a recognition language (instead of SenseVoice's own
-/// "auto" detection, which can misfire on strong accents), configure where
-/// translated captions go: one fixed target for 翻译 mode, and a
-/// per-source-language routing table for 互译.
+/// Configures where translated captions go: one fixed target for 翻译 mode,
+/// and a per-source-language routing table for 互译.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     super.key,
@@ -86,22 +84,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
-            child: Text(
-              '字幕模式识别语言',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          _languagePicker(
-            semanticLabel: '字幕模式识别语言',
-            languages: recognitionLanguages,
-            value: settings.recognitionLanguage,
-            onChanged: (language) => _apply(
-              () => widget.controller.setRecognitionLanguage(language),
-            ),
-          ),
-          const Divider(),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: Text(
               '翻译模式目标语言',
               style: TextStyle(fontWeight: FontWeight.bold),

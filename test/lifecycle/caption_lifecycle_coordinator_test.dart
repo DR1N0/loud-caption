@@ -453,7 +453,7 @@ class _FakeSpeechEngine implements SpeechEngine {
   Stream<SpeechEvent> get events => _events.stream;
 
   @override
-  Future<int> start(String languageCode) async {
+  Future<int> start() async {
     final pending = holdNextStart;
     holdNextStart = null;
     onStart?.call();
@@ -463,8 +463,8 @@ class _FakeSpeechEngine implements SpeechEngine {
       startCalls++;
       throw StateError('test start failure');
     }
-    if (failingLanguages.contains(languageCode)) {
-      throw StateError('test $languageCode start failure');
+    if (failingLanguages.contains('auto')) {
+      throw StateError('test auto start failure');
     }
     return _activeSessionId = ++startCalls;
   }
@@ -495,13 +495,6 @@ class _FakeSpeechEngine implements SpeechEngine {
   }
 
   void emit(SpeechEvent event) => _events.add(event);
-
-  @override
-  List<SpeechEngineConfigOption> get configOptions => const [];
-  @override
-  Map<String, String> get currentConfig => const {};
-  @override
-  Future<void> applyConfig(Map<String, String> values) async {}
 }
 
 class _FakeMicrophoneAccess implements MicrophoneAccess {

@@ -33,22 +33,11 @@ void main() {
     final settings = CaptionSettings();
 
     expect(settings.captionMode, CaptionMode.captions);
-    expect(settings.recognitionLanguage, 'auto');
     expect(settings.translateAllTarget, 'en');
     expect(settings.themeMode, AppThemeMode.dark);
     for (final language in translationLanguages) {
       expect(settings.routingTargetFor(language), language);
     }
-  });
-
-  test('recognition language accepts a valid override and rejects an invalid one', () {
-    final settings = CaptionSettings();
-
-    expect(settings.withRecognitionLanguage('zh').recognitionLanguage, 'zh');
-    expect(
-      CaptionSettings(recognitionLanguage: 'fr').recognitionLanguage,
-      'auto',
-    );
   });
 
   test(

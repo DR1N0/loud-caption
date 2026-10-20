@@ -18,10 +18,6 @@ const List<String> translationTargetLanguages = [
   'te', 'mr', 'he', 'bn', 'ta', 'uk', 'bo', 'kk', 'mn', 'ug', 'yue',
 ];
 
-/// The languages a user can force recognition to (instead of SenseVoice's
-/// own "auto" language detection, which can misfire on strong accents).
-const List<String> recognitionLanguages = ['auto', 'zh', 'en', 'ja', 'ko', 'yue'];
-
 /// Chinese display name for every code in [translationTargetLanguages] plus
 /// `'auto'` — matches Hy-MT2's own README table wording exactly (e.g.
 /// `英语`/`日语`/`韩语`, not `英文`/`日文`/`韩文`), since this map is also
@@ -103,7 +99,6 @@ class CaptionSettings {
     double fontSize = 48.0,
     bool landscape = false,
     CaptionMode captionMode = CaptionMode.captions,
-    String recognitionLanguage = 'auto',
     String translateAllTarget = 'en',
     Map<String, String> routing = const {},
     AppThemeMode themeMode = AppThemeMode.dark,
@@ -111,11 +106,6 @@ class CaptionSettings {
     _nearestFontSize(fontSize),
     landscape,
     captionMode,
-    _validatedFromList(
-      recognitionLanguage,
-      recognitionLanguages,
-      fallback: 'auto',
-    ),
     _validatedFromList(translateAllTarget, translationTargetLanguages, fallback: 'en'),
     _validatedRouting(routing),
     themeMode,
@@ -125,7 +115,6 @@ class CaptionSettings {
     this._fontSize,
     this._landscape,
     this._captionMode,
-    this._recognitionLanguage,
     this._translateAllTarget,
     this._routing,
     this._themeMode,
@@ -136,7 +125,6 @@ class CaptionSettings {
   final double _fontSize;
   final bool _landscape;
   final CaptionMode _captionMode;
-  final String _recognitionLanguage;
   final String _translateAllTarget;
   final Map<String, String> _routing;
   final AppThemeMode _themeMode;
@@ -144,7 +132,6 @@ class CaptionSettings {
   double get fontSize => _fontSize;
   bool get landscape => _landscape;
   CaptionMode get captionMode => _captionMode;
-  String get recognitionLanguage => _recognitionLanguage;
   String get translateAllTarget => _translateAllTarget;
   AppThemeMode get themeMode => _themeMode;
 
@@ -161,9 +148,6 @@ class CaptionSettings {
   CaptionSettings withCaptionMode(CaptionMode mode) =>
       _copy(captionMode: mode);
 
-  CaptionSettings withRecognitionLanguage(String language) =>
-      _copy(recognitionLanguage: language);
-
   CaptionSettings withTranslateAllTarget(String language) =>
       _copy(translateAllTarget: language);
 
@@ -176,7 +160,6 @@ class CaptionSettings {
     double? fontSize,
     bool? landscape,
     CaptionMode? captionMode,
-    String? recognitionLanguage,
     String? translateAllTarget,
     Map<String, String>? routing,
     AppThemeMode? themeMode,
@@ -184,7 +167,6 @@ class CaptionSettings {
     fontSize: fontSize ?? this.fontSize,
     landscape: landscape ?? this.landscape,
     captionMode: captionMode ?? this.captionMode,
-    recognitionLanguage: recognitionLanguage ?? this.recognitionLanguage,
     translateAllTarget: translateAllTarget ?? this.translateAllTarget,
     routing: routing ?? _routing,
     themeMode: themeMode ?? this.themeMode,
@@ -196,7 +178,6 @@ class CaptionSettings {
       other.fontSize == fontSize &&
       other.landscape == landscape &&
       other.captionMode == captionMode &&
-      other.recognitionLanguage == recognitionLanguage &&
       other.translateAllTarget == translateAllTarget &&
       other.themeMode == themeMode &&
       translationLanguages.every(
@@ -209,7 +190,6 @@ class CaptionSettings {
     fontSize,
     landscape,
     captionMode,
-    recognitionLanguage,
     translateAllTarget,
     themeMode,
     Object.hashAll([
@@ -289,7 +269,6 @@ class SharedPreferencesSettingsStore implements SettingsStore {
   static const fontSizeKey = 'caption.fontSize';
   static const landscapeKey = 'caption.landscape';
   static const captionModeKey = 'caption.mode';
-  static const recognitionLanguageKey = 'caption.recognitionLanguage';
   static const translateAllTargetKey = 'caption.translateAllTarget';
   static const themeModeKey = 'caption.themeMode';
 
@@ -304,8 +283,6 @@ class SharedPreferencesSettingsStore implements SettingsStore {
       fontSize: preferences.getDouble(fontSizeKey) ?? 48,
       landscape: preferences.getBool(landscapeKey) ?? false,
       captionMode: _readCaptionMode(preferences),
-      recognitionLanguage:
-          preferences.getString(recognitionLanguageKey) ?? 'auto',
       translateAllTarget: preferences.getString(translateAllTargetKey) ?? 'en',
       routing: {
         for (final language in translationLanguages)
@@ -347,13 +324,6 @@ class SharedPreferencesSettingsStore implements SettingsStore {
       await _write(
         preferences.setString(captionModeKey, settings.captionMode.name),
         captionModeKey,
-      );
-      await _write(
-        preferences.setString(
-          recognitionLanguageKey,
-          settings.recognitionLanguage,
-        ),
-        recognitionLanguageKey,
       );
       await _write(
         preferences.setString(
@@ -429,7 +399,6 @@ class _SettingsSnapshot {
     required this.fontSize,
     required this.landscape,
     required this.captionMode,
-    required this.recognitionLanguage,
     required this.translateAllTarget,
     required this.routing,
     required this.themeMode,
@@ -454,13 +423,6 @@ class _SettingsSnapshot {
           SharedPreferencesSettingsStore.captionModeKey,
           () => preferences.getString(
             SharedPreferencesSettingsStore.captionModeKey,
-          ),
-        ),
-        recognitionLanguage: _StoredValue.capture(
-          preferences,
-          SharedPreferencesSettingsStore.recognitionLanguageKey,
-          () => preferences.getString(
-            SharedPreferencesSettingsStore.recognitionLanguageKey,
           ),
         ),
         translateAllTarget: _StoredValue.capture(
@@ -492,7 +454,6 @@ class _SettingsSnapshot {
   final _StoredValue<double> fontSize;
   final _StoredValue<bool> landscape;
   final _StoredValue<String> captionMode;
-  final _StoredValue<String> recognitionLanguage;
   final _StoredValue<String> translateAllTarget;
   final Map<String, _StoredValue<String>> routing;
   final _StoredValue<String> themeMode;
@@ -533,16 +494,6 @@ class _SettingsSnapshot {
         SharedPreferencesSettingsStore.captionModeKey,
         (value) => preferences.setString(
           SharedPreferencesSettingsStore.captionModeKey,
-          value,
-        ),
-      ),
-    );
-    await attempt(
-      () => recognitionLanguage.restore(
-        preferences,
-        SharedPreferencesSettingsStore.recognitionLanguageKey,
-        (value) => preferences.setString(
-          SharedPreferencesSettingsStore.recognitionLanguageKey,
           value,
         ),
       ),

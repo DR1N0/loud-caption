@@ -13,8 +13,7 @@ void main() {
     tester,
   ) async {
     // Tall enough that the ListView's lazy sliver builds every section
-    // (recognition-language picker, translate-all picker, all four routing
-    // rows) without needing to scroll first.
+    // (translate-all picker and all four routing rows) without scrolling.
     tester.view.physicalSize = const Size(1080, 3200);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
@@ -31,7 +30,6 @@ void main() {
     await tester.pump();
 
     expect(find.text('设置'), findsOneWidget);
-    expect(find.bySemanticsLabel('字幕模式识别语言\n自动'), findsOneWidget);
     expect(find.bySemanticsLabel('翻译模式目标语言\n英语'), findsOneWidget);
     // Each routing row is a ListTile, which merges its title + trailing
     // dropdown into one multi-line semantics label rather than keeping the
@@ -201,7 +199,7 @@ class _FakeSpeechEngine implements SpeechEngine {
   Stream<SpeechEvent> get events => _events.stream;
 
   @override
-  Future<int> start(String languageCode) async => 1;
+  Future<int> start() async => 1;
 
   @override
   Future<bool> isSessionActive(int sessionId) async => false;
@@ -211,11 +209,4 @@ class _FakeSpeechEngine implements SpeechEngine {
 
   @override
   Future<void> dispose() => _events.close();
-
-  @override
-  List<SpeechEngineConfigOption> get configOptions => const [];
-  @override
-  Map<String, String> get currentConfig => const {};
-  @override
-  Future<void> applyConfig(Map<String, String> values) async {}
 }

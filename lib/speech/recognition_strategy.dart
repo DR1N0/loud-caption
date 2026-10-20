@@ -1,7 +1,5 @@
 import 'dart:typed_data';
 
-import 'speech_engine.dart';
-
 /// One decoded segment of speech.
 ///
 /// VAD-chunked strategies (e.g. SenseVoice via sherpa-onnx) only ever emit
@@ -34,19 +32,7 @@ class RecognitionOutput {
 abstract interface class RecognitionStrategy {
   Stream<RecognitionOutput> get output;
 
-  /// The strategy's configurable options, orthogonal to [start]'s
-  /// `languageCode` parameter.
-  List<SpeechEngineConfigOption> get configOptions;
-
-  /// The strategy's current config values, keyed by
-  /// [SpeechEngineConfigOption.key].
-  Map<String, String> get currentConfig;
-
-  /// Validates `values` against [configOptions], throwing [ArgumentError]
-  /// for an unknown key or an out-of-range value.
-  void applyConfig(Map<String, String> values);
-
-  Future<void> start(String languageCode);
+  Future<void> start();
 
   void acceptAudio(Float32List samples, int sampleRate);
 

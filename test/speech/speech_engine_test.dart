@@ -21,15 +21,4 @@ void main() {
     expect(withoutLanguage.detectedLanguage, isNull);
     expect(withLanguage.detectedLanguage, 'zh');
   });
-
-  test('SpeechEngineConfigOption round-trips its fields', () {
-    const option = SpeechEngineConfigOption(
-      key: 'language',
-      allowedValues: ['auto', 'zh', 'en', 'ja', 'ko', 'yue'],
-      defaultValue: 'auto',
-    );
-    expect(option.key, 'language');
-    expect(option.allowedValues, ['auto', 'zh', 'en', 'ja', 'ko', 'yue']);
-    expect(option.defaultValue, 'auto');
-  });
 }
