@@ -43,6 +43,8 @@ adb -s <serial> install -r \
 - Do **not** use `flutter install`: it can reuse an existing APK without
   rebuilding, which has caused stale-build test cycles.
 - Use `adb install -r`, not an uninstall/reinstall, to preserve app data.
+  The 0.0.3 → 0.0.4 package rename is the exception: uninstall the old
+  `app.loudcaption.loud_caption` once first.
 - Debug and release builds share the local upload key when
   `android/key.properties` is present, so they can replace each other without
   an uninstall. Without a local key, debug uses the standard debug key and

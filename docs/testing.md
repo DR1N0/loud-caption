@@ -15,7 +15,10 @@ download gates, the download/extraction UI, and Chinese/English rendering.
 
 Run on a physical Android phone before attaching release artifacts:
 
-- [ ] Install over the previous release without uninstalling; app data survives.
+- [ ] **0.0.4 only:** uninstall 0.0.3 once, install 0.0.4, and confirm the
+      models download again under `app.loudcaption`.
+- [ ] Subsequent releases: install over the previous release without
+      uninstalling; app data survives.
 - [ ] First launch with Wi-Fi: model download starts, shows progress, extracts,
       and reaches the caption screen.
 - [ ] First launch with Wi-Fi off: mobile-data confirmation appears; cancel
