@@ -20,6 +20,7 @@ package's own `LICENSE` file.
 | --- | --- | --- |
 | Loud Caption application code | source / APK | MIT |
 | Flutter SDK and Dart runtime | APK (engine) | BSD-3-Clause |
+| [intl](https://pub.dev/packages/intl) / Flutter localizations | APK | BSD-3-Clause |
 | [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (`sherpa_onnx`) | APK | Apache-2.0 |
 | [record](https://github.com/llfbandit/record) | APK | BSD-3-Clause-style (full text below) |
 | [llama_flutter_android / llama.cpp](https://github.com/ggml-org/llama.cpp) | APK | MIT |

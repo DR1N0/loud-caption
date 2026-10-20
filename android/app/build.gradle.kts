@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -5,8 +8,27 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
+fun signingValue(environment: String, property: String): String? =
+    System.getenv(environment) ?: keystoreProperties.getProperty(property)
+
+val releaseStorePath = signingValue("ANDROID_KEYSTORE_PATH", "storeFile")
+val releaseStorePassword = signingValue("ANDROID_KEYSTORE_PASSWORD", "storePassword")
+val releaseKeyAlias = signingValue("ANDROID_KEY_ALIAS", "keyAlias")
+val releaseKeyPassword = signingValue("ANDROID_KEY_PASSWORD", "keyPassword")
+val hasReleaseSigning =
+    !releaseStorePath.isNullOrBlank() &&
+        !releaseStorePassword.isNullOrBlank() &&
+        !releaseKeyAlias.isNullOrBlank() &&
+        !releaseKeyPassword.isNullOrBlank()
+
 android {
-    namespace = "app.loudcaption.loud_caption"
+    namespace = "app.loudcaption"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -20,8 +42,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "app.loudcaption.loud_caption"
+        applicationId = "app.loudcaption"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // Raised from Flutter's default (24) to 26: the llama_flutter_android
@@ -33,24 +54,19 @@ android {
         versionName = flutter.versionName
     }
 
-    // This project is distributed only via GitHub Releases, never Google Play,
-    // which would reject a debug-signed upload. The signing identity below is
-    // intentionally committed to the repo (not a secret) so every build
-    // machine produces update-compatible signatures without a private key to
-    // lose. Anyone with this repo can sign a matching "update" — see
-    // README.md's Signing section before reusing this pattern elsewhere.
-    //
-    // Debug builds use this same identity (not the per-machine auto-generated
-    // debug key) so a debug build can be installed over a release install (or
-    // vice versa) without an uninstall — there's no meaningful security
-    // reason to keep them apart for a project whose signing key is already
-    // public and that isn't shipping to Play.
+    // Release signing comes from android/key.properties locally, or from
+    // ANDROID_KEYSTORE_* environment variables in CI. The keystore is never
+    // committed. When a local key is present, debug builds share it so local
+    // debug/release installs can replace each other; without one they fall
+    // back to the standard debug key.
     signingConfigs {
         create("release") {
-            storeFile = file("release-keystore.jks")
-            storePassword = "loud-caption-public-release-key"
-            keyAlias = "loud_caption_release"
-            keyPassword = "loud-caption-public-release-key"
+            if (hasReleaseSigning) {
+                storeFile = file(releaseStorePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
         }
     }
 
@@ -61,10 +77,16 @@ android {
             // separate, tested change.
             isMinifyEnabled = false
             isShrinkResources = false
-            signingConfig = signingConfigs.getByName("release")
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
         debug {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
@@ -73,17 +95,9 @@ android {
 // purely to drop unused-ABI native libs; we only ever ship the single
 // resulting arm64-v8a APK, never Play's multi-APK split mechanism. Flutter's
 // Gradle plugin nonetheless applies Play's per-ABI versionCode offset
-// (arm64-v8a: base + 2000) to that output, which only this project's debug
-// build (built without --split-per-abi) doesn't get — making debug look like
-// an older version than an already-installed release build, which defeats
-// the shared-signing-key point of letting the two install over each other
-// freely. Pin every variant's output versionCode back to the raw pubspec
-// value so debug and release always compare equal. Must use the same
-// deprecated per-variant-output API Flutter's own plugin uses (rather than
-// AGP's newer androidComponents/onVariants API) and must be registered here,
-// after `dev.flutter.flutter-gradle-plugin` has already registered its own
-// override — Gradle calls same-API listeners in registration order, so this
-// one runs second and wins.
+// (arm64-v8a: base + 2000) to that output. Pin every variant's output
+// versionCode back to the raw pubspec value so APK/AAB and debug/release
+// always compare consistently.
 @Suppress("DEPRECATION")
 android.applicationVariants.all {
     outputs.all {

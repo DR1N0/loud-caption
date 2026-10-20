@@ -91,6 +91,10 @@ it. You will need to allow installs from your browser or file manager.
 - After the models are installed, recognition and translation work without a
   network connection.
 
+> **0.0.4 and later use the application ID `app.loudcaption`.** The 0.0.3
+> package was `app.loudcaption.loud_caption`; uninstall it once before
+> installing 0.0.4. Your models are downloaded again under the new app.
+
 ## How it works
 
 - **ASR/VAD**: SenseVoice int8 with Silero VAD, running through sherpa-onnx.
@@ -134,7 +138,12 @@ flutter pub get
 flutter analyze
 flutter test
 flutter build apk --release --target-platform android-arm64 --split-per-abi
+flutter build appbundle --release --target-platform android-arm64
 ```
+
+Release signing uses a private upload keystore supplied through
+`android/key.properties` locally or `ANDROID_KEYSTORE_*` secrets in CI. See
+[docs/release.md](docs/release.md); no key or password is committed.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
@@ -143,6 +152,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 - [Architecture](docs/architecture.md)
 - [Architecture decisions](docs/adr/)
 - [Model sources, sizes, checksums, and licenses](docs/model-sources.md)
+- [Release and signing](docs/release.md)
 - [Testing and release checklist](docs/testing.md)
 - [Device testing](docs/device-testing.md)
 - [Documentation index](docs/README.md)

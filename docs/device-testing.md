@@ -54,9 +54,9 @@ adb -s <serial> install -r \
 
 ```bash
 # App-private model files (debug build / run-as capable)
-adb shell run-as app.loudcaption.loud_caption ls -la files
-adb shell run-as app.loudcaption.loud_caption ls -la files/sense-voice
-adb shell run-as app.loudcaption.loud_caption ls -la files/silero-vad
+adb shell run-as app.loudcaption ls -la files
+adb shell run-as app.loudcaption ls -la files/sense-voice
+adb shell run-as app.loudcaption ls -la files/silero-vad
 
 # Per-thread CPU time: distinguishes a genuine stall from slow work
 adb shell top -H -n 1 -b -p <pid>

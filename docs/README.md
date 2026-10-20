@@ -14,6 +14,8 @@ expected to drift from the code.
   new ADR instead of rewriting history.
 - [Model sources](model-sources.md) — exact files, sizes, SHA-256 values,
   mirrors, and licenses.
+- [Release and signing](release.md) — application identity, private key
+  handling, local/CI builds, and artifacts.
 - [Third-party notices](../THIRD_PARTY_NOTICES.md) — dependency/model license
   inventory and full license texts.
 - [Testing](testing.md) — release smoke checklist and the project's stance on

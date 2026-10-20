@@ -5,7 +5,7 @@
 # specific installation.
 JAVA17_HOME ?= $(JAVA_HOME)
 
-.PHONY: pub-get analyze test apk-debug apk-release apk \
+.PHONY: pub-get analyze test apk-debug apk-release aab-release apk \
         install-debug install-release clean check
 
 ## Fetch Dart/Flutter package dependencies.
@@ -20,9 +20,8 @@ analyze:
 test:
 	flutter test
 
-## Build the debug APK (signed with the same committed key as release — see
-## android/app/build.gradle.kts — so switching between the two never needs an
-## uninstall first).
+## Build the debug APK. Debug uses the standard debug key unless a local
+## release key is configured (see docs/release.md).
 apk-debug:
 	cd android && env JAVA_HOME=$(JAVA17_HOME) PATH="$(JAVA17_HOME)/bin:$$PATH" \
 		./gradlew --no-daemon -Dorg.gradle.java.home=$(JAVA17_HOME) :app:assembleDebug
@@ -40,6 +39,11 @@ apk-release:
 
 ## Alias for apk-release.
 apk: apk-release
+
+## Build the release AAB (arm64-v8a) for future store distribution.
+aab-release:
+	env JAVA_HOME=$(JAVA17_HOME) PATH="$(JAVA17_HOME)/bin:$$PATH" \
+		flutter build appbundle --release --target-platform android-arm64
 
 ## Install the debug/release APK on a connected device via adb.
 install-debug: apk-debug

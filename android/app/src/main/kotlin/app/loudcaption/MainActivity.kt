@@ -1,4 +1,4 @@
-package app.loudcaption.loud_caption
+package app.loudcaption
 
 import android.content.Context
 import android.net.ConnectivityManager

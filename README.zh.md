@@ -78,6 +78,10 @@ https://github.com/DR1N0/loud-caption
 - 下载支持断点续传。未连接 Wi-Fi 时会提示将使用移动数据，确认后才继续。
 - 模型安装完成后，识别和翻译都不需要网络。
 
+> **0.0.4 起应用 ID 为 `app.loudcaption`。** 0.0.3 的包名是
+> `app.loudcaption.loud_caption`；升级前请先卸载旧版，再安装 0.0.4。模型会在
+> 新应用下重新下载。
+
 ## 实现概要
 
 - **识别/降噪**：SenseVoice int8 + Silero VAD，通过 sherpa-onnx 在本地运行。
@@ -113,7 +117,12 @@ flutter pub get
 flutter analyze
 flutter test
 flutter build apk --release --target-platform android-arm64 --split-per-abi
+flutter build appbundle --release --target-platform android-arm64
 ```
+
+发布签名使用私有 upload keystore：本地放在 `android/key.properties`，CI 使用
+`ANDROID_KEYSTORE_*` secrets。详见 [docs/release.md](docs/release.md)；仓库中
+不包含密钥或密码。
 
 提交 PR 前请先看 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
@@ -122,6 +131,7 @@ flutter build apk --release --target-platform android-arm64 --split-per-abi
 - [架构](docs/architecture.md)
 - [架构决策（ADR）](docs/adr/)
 - [模型来源、大小、校验和与许可证](docs/model-sources.md)
+- [发布与签名](docs/release.md)
 - [测试与发布检查清单](docs/testing.md)
 - [真机测试](docs/device-testing.md)
 - [文档索引](docs/README.md)
