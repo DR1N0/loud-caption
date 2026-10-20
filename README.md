@@ -131,6 +131,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 - [Architecture decisions](docs/adr/)
 - [Model sources, sizes, checksums, and licenses](docs/model-sources.md)
 - [Testing and release checklist](docs/testing.md)
+- [Device testing](docs/device-testing.md)
 - [Documentation index](docs/README.md)
 
 Dated implementation plans are intentionally kept out of the repository; a

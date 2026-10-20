@@ -1,8 +1,9 @@
 # Loud Caption developer Makefile.
 #
 # A JDK 17 trusted by your network's TLS setup is required for the Gradle
-# targets below; override JAVA17_HOME if Zulu isn't installed at this path.
-JAVA17_HOME ?= /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home
+# targets below. It defaults to JAVA_HOME; override JAVA17_HOME to point at a
+# specific installation.
+JAVA17_HOME ?= $(JAVA_HOME)
 
 .PHONY: pub-get analyze test apk-debug apk-release apk \
         install-debug install-release clean check

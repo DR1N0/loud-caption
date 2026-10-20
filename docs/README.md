@@ -14,8 +14,12 @@ expected to drift from the code.
   new ADR instead of rewriting history.
 - [Model sources](model-sources.md) — exact files, sizes, SHA-256 values,
   mirrors, and licenses.
+- [Third-party notices](../THIRD_PARTY_NOTICES.md) — dependency/model license
+  inventory and full license texts.
 - [Testing](testing.md) — release smoke checklist and the project's stance on
   performance measurements.
+- [Device testing](device-testing.md) — wireless ADB, install workflow, and
+  on-device inspection commands.
 - [Screenshot set](assets/README.md) — the five screenshots used by the README.
 
 ## Documentation rules

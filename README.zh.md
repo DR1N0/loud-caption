@@ -113,6 +113,7 @@ flutter build apk --release --target-platform android-arm64 --split-per-abi
 - [架构决策（ADR）](docs/adr/)
 - [模型来源、大小、校验和与许可证](docs/model-sources.md)
 - [测试与发布检查清单](docs/testing.md)
+- [真机测试](docs/device-testing.md)
 - [文档索引](docs/README.md)
 
 带日期的实现计划不放进仓库：过期的计划比没有计划更糟。

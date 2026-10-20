@@ -1,8 +1,101 @@
 # Third-Party Notices
 
-Loud Caption bundles on-device speech-recognition components it did not author. This file collects the attribution and license text those components require before this APK is distributed outside the developer's own devices. See [`docs/model-sources.md`](docs/model-sources.md) for the underlying research and its limitations.
+The Loud Caption **application code** is licensed under the
+[MIT License](LICENSE). This file covers third-party software and model
+weights used by the app. Some components are linked into the APK; the model
+weights are downloaded at runtime and are not part of the APK or this
+repository.
 
-(This project previously used the Vosk API and Vosk's English/Chinese ZIP models; it migrated to sherpa-onnx with a SenseVoice ASR model and a Silero VAD model. The notices below reflect the current engine only.)
+This inventory covers the direct Dart/Flutter dependencies declared in
+`pubspec.yaml` and the model weights the app installs. Transitive AndroidX,
+Kotlin, and Flutter engine components remain under their upstream licenses; the
+lockfile and each package's own `LICENSE` file are authoritative for the exact
+resolved versions. Full Apache-2.0, FunASR, and standard MIT/BSD texts are
+reproduced below; copyright lines are listed in the inventory or in each
+package's own `LICENSE` file.
+
+## Inventory
+
+| Component | Delivery | License |
+| --- | --- | --- |
+| Loud Caption application code | source / APK | MIT |
+| Flutter SDK and Dart runtime | APK (engine) | BSD-3-Clause |
+| [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (`sherpa_onnx`) | APK | Apache-2.0 |
+| [record](https://github.com/llfbandit/record) | APK | BSD-3-Clause-style (full text below) |
+| [llama_flutter_android / llama.cpp](https://github.com/ggml-org/llama.cpp) | APK | MIT |
+| [permission_handler](https://pub.dev/packages/permission_handler) | APK | MIT, Copyright (c) 2018 Baseflow |
+| [shared_preferences](https://pub.dev/packages/shared_preferences) | APK | BSD-3-Clause, Copyright 2013 The Flutter Authors |
+| [wakelock_plus](https://pub.dev/packages/wakelock_plus) | APK | BSD-3-Clause, Copyright (c) 2020-2023 creativecreatorormaybenot |
+| [path_provider](https://pub.dev/packages/path_provider) | APK | BSD-3-Clause, Copyright 2013 The Flutter Authors |
+| [crypto](https://pub.dev/packages/crypto) | APK | BSD-3-Clause, Copyright 2015 the Dart project authors |
+| [archive](https://pub.dev/packages/archive) | APK | MIT, Copyright (c) 2013-2021 Brendan Duncan |
+| [synchronized](https://pub.dev/packages/synchronized) | APK | MIT, Copyright (c) 2016 Alexandre Roux Tekartik |
+| [cupertino_icons](https://pub.dev/packages/cupertino_icons) | APK | MIT, Copyright (c) 2016 Vladimir Kharlampidi |
+| SenseVoice ASR weights | downloaded | FunASR Model Open Source License Agreement v1.1 |
+| Silero VAD weights | downloaded | MIT |
+| Hy-MT2-1.8B translation weights | downloaded | Apache-2.0 |
+
+Loud Caption does not relicense any third-party component or model weight by
+including it in this repository or its APK.
+
+## Standard MIT and BSD-3-Clause texts
+
+The MIT and BSD-3-Clause components in the inventory above use the standard
+texts below. Each component's copyright line is listed in the inventory (or in
+its package's own `LICENSE` file, for the Flutter/Dart projects whose notices
+are maintained upstream).
+
+### MIT License
+
+```text
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### BSD 3-Clause License
+
+```text
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+```
 
 ## sherpa-onnx
 
@@ -65,7 +158,7 @@ Both model files are downloaded on first launch (`lib/speech/sense_voice_model_d
 
 See [`docs/model-sources.md`](docs/model-sources.md) for the pinned SHA-256 digests and download/installed sizes for both files.
 
-The SenseVoice ONNX export bundled here is a converted/quantized derivative of Alibaba's FunASR SenseVoice model, per that model's own Hugging Face model card; it is governed by the FunASR Model License below, independent of the sherpa-onnx project that hosts the converted file.
+The SenseVoice ONNX export used here is a converted/quantized derivative of Alibaba's FunASR SenseVoice model, per that model's own Hugging Face model card; it is governed by the FunASR Model License below, independent of the sherpa-onnx project that hosts the converted file.
 
 ## Downloaded translation model
 
@@ -77,7 +170,7 @@ Downloaded on demand, the first time translation is used (`lib/translation/hy_mt
 
 See [`docs/model-sources.md`](docs/model-sources.md) for why this quantization was chosen over the smaller AngelSlim 1.25-bit/2-bit variants in sibling repositories (they need a ggml kernel not yet in mainline llama.cpp).
 
-## FunASR Model Open Source License Agreement v1.1 (full text, governs the bundled SenseVoice model weights)
+## FunASR Model Open Source License Agreement v1.1 (full text, governs the downloaded SenseVoice model weights)
 
 ```
 FunASR Model Open Source License Agreement
@@ -189,7 +282,7 @@ FunASR 模型开源协议
 版权所有© [2023-2028] [阿里巴巴集团]。保留所有权利。
 ```
 
-## Silero VAD License (MIT, full text, governs the bundled `silero_vad.onnx`)
+## Silero VAD License (MIT, full text, governs the downloaded `silero_vad.onnx`)
 
 Source: <https://github.com/snakers4/silero-vad/blob/master/LICENSE>
 
