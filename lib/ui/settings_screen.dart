@@ -181,11 +181,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (ctx) {
         final l10n = L10n.of(ctx);
+        final displayed = log.isEmpty ? l10n.noCrashLog : log;
         return AlertDialog(
           title: Text(l10n.crashLogTitle),
           content: SizedBox(
             width: double.maxFinite,
-            child: SingleChildScrollView(child: Text(log)),
+            child: SingleChildScrollView(child: Text(displayed)),
           ),
           actions: [
             TextButton(

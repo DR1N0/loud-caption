@@ -48,6 +48,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get crashLogTitle => '崩溃日志';
 
   @override
+  String get noCrashLog => '暂无崩溃记录';
+
+  @override
   String get clear => '清除';
 
   @override

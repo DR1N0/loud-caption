@@ -48,6 +48,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get crashLogTitle => 'Crash log';
 
   @override
+  String get noCrashLog => 'No crash log recorded';
+
+  @override
   String get clear => 'Clear';
 
   @override

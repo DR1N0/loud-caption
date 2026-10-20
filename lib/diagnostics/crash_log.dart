@@ -54,12 +54,12 @@ Future<void> _appendEntry(String details) async {
   }
 }
 
-/// The log's content, or a friendly placeholder if nothing's been logged.
+/// The log's content, or an empty string if nothing has been logged. The UI
+/// supplies a localized placeholder.
 Future<String> readCrashLog() async {
   final file = await _logFile();
-  if (!await file.exists()) return '暂无崩溃记录';
-  final content = await file.readAsString();
-  return content.isEmpty ? '暂无崩溃记录' : content;
+  if (!await file.exists()) return '';
+  return file.readAsString();
 }
 
 Future<void> clearCrashLog() async {

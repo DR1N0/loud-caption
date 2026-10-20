@@ -176,6 +176,12 @@ abstract class AppLocalizations {
   /// **'Crash log'**
   String get crashLogTitle;
 
+  /// No description provided for @noCrashLog.
+  ///
+  /// In en, this message translates to:
+  /// **'No crash log recorded'**
+  String get noCrashLog;
+
   /// No description provided for @clear.
   ///
   /// In en, this message translates to:

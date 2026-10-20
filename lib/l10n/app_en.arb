@@ -13,6 +13,7 @@
   "viewCrashLog": "View crash log",
   "crashLogSubtitle": "Stored only on this device; never uploaded",
   "crashLogTitle": "Crash log",
+  "noCrashLog": "No crash log recorded",
   "clear": "Clear",
   "copy": "Copy",
   "close": "Close",

@@ -37,7 +37,7 @@ void main() {
   });
 
   test('reports no crash log when nothing has been logged', () async {
-    expect(await readCrashLog(), '暂无崩溃记录');
+    expect(await readCrashLog(), isEmpty);
   });
 
   test('a logged Flutter error is readable afterward', () async {
@@ -57,7 +57,7 @@ void main() {
     expect(await readCrashLog(), isNot('暂无崩溃记录'));
 
     await clearCrashLog();
-    expect(await readCrashLog(), '暂无崩溃记录');
+    expect(await readCrashLog(), isEmpty);
   });
 
   test(

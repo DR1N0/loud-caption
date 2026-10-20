@@ -13,6 +13,7 @@
   "viewCrashLog": "查看崩溃日志",
   "crashLogSubtitle": "仅保存在本机，不会上传",
   "crashLogTitle": "崩溃日志",
+  "noCrashLog": "暂无崩溃记录",
   "clear": "清除",
   "copy": "复制",
   "close": "关闭",
